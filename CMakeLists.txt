@@ -7,11 +7,14 @@ project(GPSRProject)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-# Include headers from the "include" folder
-include_directories(include)
+# Include directories for header files
+include_directories(
+    include/network
+    include/protocols
+)
 
-# Source files (adjust if needed)
-file(GLOB SOURCES "src/*.cpp")
+# Source files
+file(GLOB_RECURSE SOURCES "src/**/*.cpp")
 
 # Define the executable
 add_executable(GPSR ${SOURCES})

@@ -53,12 +53,25 @@ RUN cd /project/omnetpp-6.1 && \
     echo "WITH_QTENV=no" >> configure.user && \
     bash -c "source setenv && ./configure && make -j$(nproc)"
 
-# Set environment variables
-ENV PATH="/project/omnetpp-6.1/bin:${PATH}"
-ENV LD_LIBRARY_PATH="/project/omnetpp-6.1/lib:${LD_LIBRARY_PATH}"
+# Download and build INET Framework 4.5.4
+RUN cd /project && \
+    wget https://github.com/inet-framework/inet/releases/download/v4.5.4/inet-4.5.4-src.tgz && \
+    tar xf inet-4.5.4-src.tgz && \
+    rm inet-4.5.4-src.tgz
 
-# Set up script to source environment when container starts
-RUN echo '#!/bin/bash\ncd /project/omnetpp-6.1 && source setenv && cd - > /dev/null && exec "$@"' > /entrypoint.sh \
+# Figure out the correct directory name and build INET
+SHELL ["/bin/bash", "-c"]
+RUN cd /project && \
+    INET_DIR=$(find . -maxdepth 1 -type d -name "inet*" | head -n 1) && \
+    echo "INET directory: $INET_DIR" && \
+    cd "$INET_DIR" && \
+    source /project/omnetpp-6.1/setenv && \
+    source setenv && \
+    make makefiles && \
+    make -j$(nproc)
+
+# Set up script to source both environment scripts when container starts
+RUN echo '#!/bin/bash\ncd /project/omnetpp-6.1 && source setenv && cd /project/inet4.5 && source setenv && cd "$OLDPWD" && exec "$@"' > /entrypoint.sh \
     && chmod +x /entrypoint.sh
 
 # Use entrypoint script to ensure environment is set up
