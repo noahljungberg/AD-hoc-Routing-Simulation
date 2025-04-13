@@ -1,0 +1,9 @@
+services:
+  omnetpp:
+    build: .
+    volumes:
+      - .:/project/adhoc_routing
+    working_dir: /project/adhoc_routing
+    stdin_open: true
+    tty: true
+    command: bash

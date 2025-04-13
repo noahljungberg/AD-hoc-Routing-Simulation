@@ -1,4 +1,0 @@
-/Users/noahljungberg/programmering/cpp/tdde35-project-noalj314-oscca863-kevma271-malbe283/cmake-build-debug/CMakeFiles/adhoc_routing_simulation.dir
-/Users/noahljungberg/programmering/cpp/tdde35-project-noalj314-oscca863-kevma271-malbe283/cmake-build-debug/CMakeFiles/run.dir
-/Users/noahljungberg/programmering/cpp/tdde35-project-noalj314-oscca863-kevma271-malbe283/cmake-build-debug/CMakeFiles/edit_cache.dir
-/Users/noahljungberg/programmering/cpp/tdde35-project-noalj314-oscca863-kevma271-malbe283/cmake-build-debug/CMakeFiles/rebuild_cache.dir

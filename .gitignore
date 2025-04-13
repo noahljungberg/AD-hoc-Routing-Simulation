@@ -1,1 +1,8 @@
 build
+cmake-build-debug
+.vs
+.idea
+
+# Docker
+.docker/
+docker-compose.override.yml
