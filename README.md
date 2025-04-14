@@ -20,12 +20,14 @@ git submodule update --init --recursive
 ### Step 2: Build NS-3 with docker (Only Needed Once)
 ```bash
 docker-compose build
-
+```
 
 ### Step 3: Run NS-3 with docker
+```bash
 docker-compose up -d
 
 docker exec -it ns3-dev bash # this will open a bash shell inside the docker container 
+
 ```
 Now you should be inside the docker container and the ns3 files should be built. 
 
