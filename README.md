@@ -10,8 +10,8 @@ This repository contains our implementation and comparison of DSDV, DSR, and GPS
 
 ```bash
 # Clone the main repo
-git clone https://github.com/your-username/adhoc-routing-comparison.git
-cd adhoc-routing-comparison
+git clone https://gitlab.liu.se/noalj314/tdde35-project-noalj314-oscca863-kevma271-malbe283.git
+cd tdde35-project-noalj314-oscca863-kevma271-malbe283
 
 # Initialize and download the NS-3 submodule
 git submodule update --init --recursive
