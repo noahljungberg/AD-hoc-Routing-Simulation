@@ -2,13 +2,12 @@
 #ifndef STATICSIMULATION_HPP
 #define STATICSIMULATION_HPP
 
-#include "StaticSimulation.h"
 #include "ns3/core-module.h"
 #include "ns3/network-module.h"
 #include "ns3/mobility-module.h"
 #include "ns3/internet-module.h"
 #include <iostream>
-#include "AbstractSimulation.h"
+#include "AbstractSimulation.hpp"
 
 class StaticSimulation : public AbstractSimulation {
   public:
@@ -22,7 +21,7 @@ class StaticSimulation : public AbstractSimulation {
     virtual void RunSimulation() override;
     virtual void CollectResults() override;
 
-  }
+  };
 
 
 #endif //STATICSIMULATION_HPP

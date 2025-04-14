@@ -1,4 +1,4 @@
-#include "StaticSimulation.h"
+#include "StaticSimulation.hpp"
 
 StaticSimulation::StaticSimulation(const int numNodes, const double simulationTime)
     : m_numNodes(numNodes), m_simulationTime(simulationTime) {

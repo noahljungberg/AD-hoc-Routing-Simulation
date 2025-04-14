@@ -16,3 +16,15 @@ void AbstractSimulation::SetupNetwork() {
     // 'nodes' should be a member defined in AbstractSimulation, or set up by derived classes.
     NetDeviceContainer devices = wifi.Install(wifiPhy, wifiMac, nodes);
 }
+
+void AbstractSimulation::SetupDSDV() {
+    DsdvHelper dsdv;
+    InternetStackHelper internet;
+    internet.SetRoutingHelper(dsdv);
+    internet.Install(m_nodes);
+
+    // Configure IP addressing
+    Ipv4AddressHelper ipv4;
+    ipv4.SetBase("10.1.1.0", "255.255.255.0");
+    m_interfaces = ipv4.Assign(m_devices);  // Store in a member variable
+}

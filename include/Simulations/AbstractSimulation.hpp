@@ -30,6 +30,9 @@ class AbstractSimulation {
 protected:
   // Methods that must be implemented by derived classes
   void SetupNetwork();
+  virtual void SetupDSDV();         // configure DSDV routing protocol
+  virtual void SetupDSR() = 0;          // configure DSR routing protocol
+  virtual void SetupGPSR() = 0;         // configure GPSR routing protocol
   virtual void SetupTopology() = 0;         // e.g., node creation, mobility model
   virtual void SetupRoutingProtocol() = 0;      // configure DSDV, DSR, or GPSR on nodes
   virtual void ConfigureApplications() = 0;   // install applications, set up traffic flows
