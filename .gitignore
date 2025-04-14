@@ -1,7 +1,10 @@
-build
-cmake-build-debug
-.vs
-.idea
+/build/
+*.o
+*.so
+*.a
+.vscode/
+.idea/
+*.swp
 
 # Docker
 .docker/
