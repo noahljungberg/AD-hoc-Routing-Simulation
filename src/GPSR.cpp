@@ -1,4 +1,3 @@
-#pragma once
 
 #include "ProtocolBase.hpp"
 #include <vector>
@@ -6,7 +5,6 @@
 #include "GPSR.hpp"
 #include <cmath> // For sqrt and pow
 
-class GPSR: public ProtocolBase {
     Path findRoute(Node* src, Node* dst) {
         Node* curr = src;
         Node* next;
@@ -26,17 +24,15 @@ class GPSR: public ProtocolBase {
         int currentShortest;
         int tempDistance;
         Node* closestNode;
-        
+
         for (auto i = neighborTable.begin(); i < neighborTable.end(); i++) {
             tempDistance = distanceTo(A, *i);
             if (tempDistance < currentShortest) {
-                currentShortest = tempDistance; 
+                currentShortest = tempDistance;
                 closestNode = *i;
             }
         }
-        
+
         path.timeElapsed += tempDistance;
         return closestNode;
     }
-    
-};

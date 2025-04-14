@@ -1,9 +1,9 @@
 services:
-  omnetpp:
+  ns3-dev:
     build: .
     volumes:
-      - .:/project/adhoc_routing
-    working_dir: /project/adhoc_routing
+      - .:/project
+    working_dir: /project
     stdin_open: true
     tty: true
     command: bash

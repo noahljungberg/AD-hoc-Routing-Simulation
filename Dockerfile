@@ -3,64 +3,47 @@ FROM ubuntu:22.04
 # Avoid interactive prompts during installation
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install required packages for OMNeT++
+# Install all dependencies for NS-3
 RUN apt-get update && apt-get install -y \
     build-essential \
-    clang \
-    lld \
-    gdb \
-    bison \
-    flex \
-    perl \
+    gcc \
+    g++ \
     python3 \
-    python3-pip \
-    libpython3-dev \
+    python3-dev \
+    pkg-config \
+    sqlite3 \
+    libsqlite3-dev \
+    cmake \
+    libboost-all-dev \
+    libgsl-dev \
+    git \
+    gdb \
+    valgrind \
+    libgtk-3-dev \
+    # Replace qt5-default with these packages
     qtbase5-dev \
     qtchooser \
     qt5-qmake \
     qtbase5-dev-tools \
-    libqt5opengl5-dev \
+    # Rest of packages
     libxml2-dev \
-    zlib1g-dev \
+    libpcap-dev \
+    tcpdump \
+    wireshark \
     doxygen \
     graphviz \
-    libwebkit2gtk-4.0-dev \
-    xdg-utils \
-    wget \
-    xvfb \
-    libxkbcommon-x11-0 \
-    libgl1-mesa-glx \
-    git \
-    cmake \
+    imagemagick \
+    vim \
     && apt-get clean
 
-# Set up working directory
+# Clone NS-3
+RUN git clone https://gitlab.com/nsnam/ns-3-dev.git /ns-3
+
+# Build NS-3 with only the modules needed
+WORKDIR /ns-3
+RUN ./ns3 configure --enable-modules=core,network,internet,applications,wifi,propagation,mobility,dsdv,dsr,aodv,olsr,flow-monitor,stats,netanim
+RUN ./ns3 build
+
+# Set up the project directory
 WORKDIR /project
-
-# Get OMNeT++ and extract it
-RUN wget https://github.com/omnetpp/omnetpp/releases/download/omnetpp-6.1.0/omnetpp-6.1.0-linux-x86_64.tgz \
-    && tar xf omnetpp-6.1.0-linux-x86_64.tgz \
-    && rm omnetpp-6.1.0-linux-x86_64.tgz
-
-# Install Python dependencies
-RUN cd /project/omnetpp-6.1 && \
-    python3 -m pip install -r python/requirements.txt
-
-# Configure and build OMNeT++ (using bash to source the environment)
-RUN cd /project/omnetpp-6.1 && \
-    echo "WITH_OSG=no" >> configure.user && \
-    echo "WITH_OSGEARTH=no" >> configure.user && \
-    echo "WITH_QTENV=no" >> configure.user && \
-    bash -c "source setenv && ./configure && make -j$(nproc)"
-
-# Set environment variables
-ENV PATH="/project/omnetpp-6.1/bin:${PATH}"
-ENV LD_LIBRARY_PATH="/project/omnetpp-6.1/lib:${LD_LIBRARY_PATH}"
-
-# Set up script to source environment when container starts
-RUN echo '#!/bin/bash\ncd /project/omnetpp-6.1 && source setenv && cd - > /dev/null && exec "$@"' > /entrypoint.sh \
-    && chmod +x /entrypoint.sh
-
-# Use entrypoint script to ensure environment is set up
-ENTRYPOINT ["/entrypoint.sh"]
 CMD ["/bin/bash"]

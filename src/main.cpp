@@ -10,14 +10,14 @@ int main() {
     Node nodeA(1, {0, 0});
     Node nodeB(2, {5, 0});
     Node nodeC(3, {10, 0});
-    Node nodeD(4, {15, 0});    
+    Node nodeD(4, {15, 0});
 
     // Simulate neighbor relationships
     std::vector<Node*> neighbors = {&nodeB, &nodeC};  // Node A can see B and C
 
     // Create GPSR instance
     GPSR gpsr;
-    
+
     // Manually assign the neighbor table
     gpsr.neighborTable = neighbors;
 

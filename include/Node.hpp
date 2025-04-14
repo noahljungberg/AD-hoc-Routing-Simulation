@@ -1,9 +1,9 @@
-#include <string>
-#include "ProtocolBase.hpp"  // gives access to 'pos'
+#pragma once
+#include "ProtocolBase.hpp"  // Now this is safe
 
 struct Node {
-    Node* next;      
-    struct Pos pos;
+    Node* next;
+    Pos pos;
     int id;
     Node();
     Node(int id, Pos pos);

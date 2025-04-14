@@ -6,3 +6,12 @@ cmake-build-debug
 # Docker
 .docker/
 docker-compose.override.yml
+
+#ns-3
+external/ns-3/build/
+external/ns-3/cmake-cache/
+external/ns-3/cmake-build-debug/
+external/ns-3/CMakeCache.txt
+external/ns-3/CMakeFiles/
+external/ns-3/.waf*
+external/ns-3/.lock-waf*
