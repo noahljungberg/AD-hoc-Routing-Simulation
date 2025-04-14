@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
     mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
     mobility.Install(nodes);
 
-    // install internet stack: this addas networking protocols to the nodes (like IP)
+    // install internet stack: this adds  a networking protocols to the nodes (like IP)
     InternetStackHelper internet;
     DsdvHelper dsdv;
     internet.SetRoutingHelper(dsdv); // Tell the Internet stack to use DSDV for routing
