@@ -28,3 +28,13 @@ void AbstractSimulation::SetupDSDV() {
     ipv4.SetBase("10.1.1.0", "255.255.255.0");
     m_interfaces = ipv4.Assign(m_devices);  // Store in a member variable
 }
+
+void AbstractSimulation::SetupDSR()
+{
+    // pass
+}
+
+ void AbstractSimulation::SetupGPSR()
+{
+    // pass
+}

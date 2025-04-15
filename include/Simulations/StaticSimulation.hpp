@@ -9,6 +9,16 @@
 #include <iostream>
 #include "AbstractSimulation.hpp"
 
+
+/*
+ * StaticSimulation class
+ * This class is derived from AbstractSimulation and implements the methods
+ * to set up a static simulation environment.
+ * It creates a grid of nodes, configures the routing protocol,
+ * sets up applications, and runs the simulation.
+ * TODO: Replace all MAGIC NUMBERS
+*/
+
 class StaticSimulation : public AbstractSimulation {
   public:
     StaticSimulation(const int numNodes, const double simulationTime);

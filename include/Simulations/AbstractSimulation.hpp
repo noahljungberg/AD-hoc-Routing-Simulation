@@ -13,6 +13,13 @@
 #include "ns3/wifi-module.h"
 #include "ns3/propagation-module.h"
 #include "ns3/mobility-module.h"
+#include "ns3/core-module.h"
+#include "ns3/network-module.h"
+#include "ns3/mobility-module.h"
+#include "ns3/internet-module.h"
+#include "ns3/dsdv-module.h"
+#include "ns3/wifi-module.h"
+#include "ns3/applications-module.h"
 
 
 
@@ -30,9 +37,9 @@ class AbstractSimulation {
 protected:
   // Methods that must be implemented by derived classes
   void SetupNetwork();
-  virtual void SetupDSDV();         // configure DSDV routing protocol
-  virtual void SetupDSR() = 0;          // configure DSR routing protocol
-  virtual void SetupGPSR() = 0;         // configure GPSR routing protocol
+ void SetupDSDV();         // configure DSDV routing protocol
+ void SetupDSR();          // configure DSR routing protocol
+ void SetupGPSR();         // configure GPSR routing protocol
   virtual void SetupTopology() = 0;         // e.g., node creation, mobility model
   virtual void SetupRoutingProtocol() = 0;      // configure DSDV, DSR, or GPSR on nodes
   virtual void ConfigureApplications() = 0;   // install applications, set up traffic flows
