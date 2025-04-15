@@ -45,3 +45,15 @@ void StaticSimulation::ConfigureApplications()
     // enable tracing: this writes packet-level information to a pcap file
     wifiPhy.EnablePcap("dsdv-simulation", devices); // enable pcap tracing for the devices
 }
+
+void StaticSimulation::RunSimulation() {
+    Simulator::Run();  // Start the simulation
+    Simulator::Destroy();  // Clean up after the simulation
+}
+
+void StaticSimulation::CollectResults() {
+    // Collect and process simulation results
+    // This could include analyzing packet delivery ratios, delays, etc.
+    // For now, we will just print a message
+    std::cout << "Simulation completed. Results collected." << std::endl;
+}
