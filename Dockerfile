@@ -34,6 +34,7 @@ RUN apt-get update && apt-get install -y \
     graphviz \
     imagemagick \
     vim \
+    ninja-build \
     && apt-get clean
 
 # Clone NS-3
