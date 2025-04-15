@@ -48,12 +48,16 @@ protected:
 
 
   ns3::NodeContainer m_nodes;
-  int m_numNodes;
-  double m_simulationTime;
+  int m_numNodes = 10;
+  double m_simulationTime = 100.0;
   std::string m_routingProtocol;
   std::string m_topology;
   std::string m_applicationType;
   std::string m_resultsFile;
+
+  // New member variables
+  ns3::NetDeviceContainer m_devices;
+  ns3::Ipv4InterfaceContainer m_interfaces;
 };
 
 

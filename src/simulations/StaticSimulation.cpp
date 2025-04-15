@@ -1,59 +1,60 @@
-#include "Simulations/StaticSimulation.hpp"
+#include "Simulations/StaticSimulation.hpp"  // Not StaticSimulation.h
 
-StaticSimulation::StaticSimulation(const int numNodes, const double simulationTime)
-    : m_numNodes(numNodes), m_simulationTime(simulationTime) {
-    m_nodes.Create(numNodes);
+StaticSimulation::StaticSimulation(const int numNodes, const double simulationTime) {
+    m_numNodes = numNodes;
+    m_simulationTime = simulationTime;
 }
 
 StaticSimulation::~StaticSimulation() {}
 
 void StaticSimulation::SetupTopology() {
-    m_nodes.Create(m_numNodes);  // Create nodes
-
+    // Add your grid position allocator code here
+    ns3::MobilityHelper mobility;
     mobility.SetPositionAllocator("ns3::GridPositionAllocator",
-                        "MinX", DoubleValue(0.0),           // Starting X coordinate
-                        "MinY", DoubleValue(0.0),           // Starting Y coordinate
-                        "DeltaX", DoubleValue(100.0),       // Distance between nodes in X-direction
-                        "DeltaY", DoubleValue(100.0),       // Distance between nodes in Y-direction
-                        "GridWidth", UintegerValue(5),      // Number of nodes per row
-                        "LayoutType", StringValue("RowFirst")); // Fill rows before columns
+                               "MinX", ns3::DoubleValue(0.0),
+                               "MinY", ns3::DoubleValue(0.0),
+                               "DeltaX", ns3::DoubleValue(100.0),
+                               "DeltaY", ns3::DoubleValue(100.0),
+                               "GridWidth", ns3::UintegerValue(5),
+                               "LayoutType", ns3::StringValue("RowFirst"));
 
-    // set a mobility model that keeps nodes in constant position
     mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
-    mobility.Install(nodes);
+    mobility.Install(m_nodes);
 }
 
-void SetupRoutingProtocol() {
-    setupDSDV();  // Configure DSDV routing protocol
+void StaticSimulation::SetupRoutingProtocol() {
+    // Choose which protocol to use
+    SetupDSDV();  // For now, just use DSDV
 }
 
-void StaticSimulation::ConfigureApplications()
-{
+void StaticSimulation::ConfigureApplications() {
+    // Basic echo client/server setup
+    uint16_t port = 9;
 
+    // Create a server on the last node
+    ns3::UdpEchoServerHelper echoServer(port);
+    ns3::ApplicationContainer serverApps = echoServer.Install(m_nodes.Get(m_numNodes - 1));
+    serverApps.Start(ns3::Seconds(1.0));
+    serverApps.Stop(ns3::Seconds(m_simulationTime));
 
-    // create an application: set up a udp echo client on node 9 that sends a packet to the server
-    UdpEchoClientHelper echoClient(interfaces.GetAddress(0), 9); // Target server at node 0, port 9
-    echoClient.SetAttribute("MaxPackets", UintegerValue(1)); // send only one packet
-    echoClient.SetAttribute("Interval", TimeValue(Seconds(1.0))); // 1 second interval
-    echoClient.SetAttribute("PacketSize", UintegerValue(1024)); // packet size of 1024 bytes
+    // Create a client on the first node
+    ns3::UdpEchoClientHelper echoClient(m_interfaces.GetAddress(m_numNodes - 1), port);
+    echoClient.SetAttribute("MaxPackets", ns3::UintegerValue(1));
+    echoClient.SetAttribute("Interval", ns3::TimeValue(ns3::Seconds(1.0)));
+    echoClient.SetAttribute("PacketSize", ns3::UintegerValue(1024));
 
-    ApplicationContainer clientApps = echoClient.Install(nodes.Get(9)); // install the client on node 9
-
-    clientApps.Start(Seconds(2.0)); // start the client at 2 seconds into the simulation
-    clientApps.Stop(Seconds(10.0)); // stop the client at 10 seconds into the simulation
-
-    // enable tracing: this writes packet-level information to a pcap file
-    wifiPhy.EnablePcap("dsdv-simulation", devices); // enable pcap tracing for the devices
+    ns3::ApplicationContainer clientApps = echoClient.Install(m_nodes.Get(0));
+    clientApps.Start(ns3::Seconds(2.0));
+    clientApps.Stop(ns3::Seconds(m_simulationTime));
 }
 
 void StaticSimulation::RunSimulation() {
-    Simulator::Run();  // Start the simulation
-    Simulator::Destroy();  // Clean up after the simulation
+    ns3::Simulator::Stop(ns3::Seconds(m_simulationTime));
+    ns3::Simulator::Run();
+    ns3::Simulator::Destroy();
 }
 
 void StaticSimulation::CollectResults() {
-    // Collect and process simulation results
-    // This could include analyzing packet delivery ratios, delays, etc.
-    // For now, we will just print a message
-    std::cout << "Simulation completed. Results collected." << std::endl;
+    // You can add result collection logic here
+    std::cout << "Simulation completed successfully." << std::endl;
 }

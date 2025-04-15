@@ -1,22 +1,31 @@
-
-
 #include "Simulations/AbstractSimulation.hpp"
+#include "ns3/core-module.h"
+#include "ns3/network-module.h"
+#include "ns3/internet-module.h"
+#include "ns3/wifi-module.h"
+#include "ns3/dsdv-module.h"
+#include "ns3/applications-module.h"
+#include "ns3/mobility-module.h"
 
-
+// To make code cleaner
+using namespace ns3;
 
 void AbstractSimulation::SetupNetwork() {
-    WifiHelper wifi;
-    wifi.SetStandard(WIFI_PHY_STANDARD_80211b);
+    m_nodes.Create(m_numNodes);
 
-    YansWifiPhyHelper wifiPhy = YansWifiPhyHelper::Default();
-    YansWifiChannelHelper wifiChannel = YansWifiChannelHelper::Default();
+    WifiHelper wifi;
+    wifi.SetStandard(WIFI_STANDARD_80211b);  // Changed from WIFI_PHY_STANDARD_80211b
+
+    // Create these objects directly, not using static Default() method
+    YansWifiPhyHelper wifiPhy;
+    YansWifiChannelHelper wifiChannel;
     wifiPhy.SetChannel(wifiChannel.Create());
 
     WifiMacHelper wifiMac;
-    wifiMac.SetType("ns3::AdhocWifiMac");  // Ensuring ad hoc mode
+    wifiMac.SetType("ns3::AdhocWifiMac");
 
-    // 'nodes' should be a member defined in AbstractSimulation, or set up by derived classes.
-    NetDeviceContainer devices = wifi.Install(wifiPhy, wifiMac, nodes);
+    // Use m_nodes (member variable) instead of nodes
+    m_devices = wifi.Install(wifiPhy, wifiMac, m_nodes);
 }
 
 void AbstractSimulation::SetupDSDV() {
@@ -28,15 +37,14 @@ void AbstractSimulation::SetupDSDV() {
     // Configure IP addressing
     Ipv4AddressHelper ipv4;
     ipv4.SetBase("10.1.1.0", "255.255.255.0");
-    m_interfaces = ipv4.Assign(m_devices);  // Store in a member variable
+    m_interfaces = ipv4.Assign(m_devices);
 }
 
-void AbstractSimulation::SetupDSR()
-{
-    // pass
+// Add stubs for the other protocol methods
+void AbstractSimulation::SetupDSR() {
+    // Implementation will come later
 }
 
- void AbstractSimulation::SetupGPSR()
-{
-    // pass
+void AbstractSimulation::SetupGPSR() {
+    // Implementation will come later
 }
