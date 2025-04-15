@@ -1,11 +1,5 @@
 #include "Simulations/AbstractSimulation.hpp"
-#include "ns3/core-module.h"
-#include "ns3/network-module.h"
-#include "ns3/internet-module.h"
-#include "ns3/wifi-module.h"
-#include "ns3/dsdv-module.h"
-#include "ns3/applications-module.h"
-#include "ns3/mobility-module.h"
+
 
 // To make code cleaner
 using namespace ns3;
@@ -33,6 +27,10 @@ void AbstractSimulation::SetupNetwork() {
 
     // Install on nodes
     m_devices = wifi.Install(wifiPhy, wifiMac, m_nodes);
+
+    AsciiTraceHelper ascii;
+    wifiPhy.EnableAsciiAll(ascii.CreateFileStream("wireless-trace.tr"));
+    wifiPhy.EnablePcapAll("simulation-pcap");
 }
 
 void AbstractSimulation::SetupDSDV() {

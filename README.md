@@ -2,7 +2,7 @@
 
 This repository contains our implementation and comparison of DSDV, DSR, and GPSR routing protocols for ad-hoc networks using NS-3. This README explains how to set up the project and work with NS-3 on any operating system.
 
-## 🚀 Quick Start
+##  Quick Start
 
 ### Step 0: Install docker 
 
@@ -17,7 +17,7 @@ cd tdde35-project-noalj314-oscca863-kevma271-malbe283
 git submodule update --init --recursive
 ```
 
-### Step 2: Build NS-3 with docker (Only Needed Once)
+### Step 2: Build docker (Only Needed Once)
 ```bash
 docker-compose build
 ```
@@ -29,9 +29,35 @@ docker-compose up -d
 docker exec -it ns3-dev bash # this will open a bash shell inside the docker container 
 
 ```
-Now you should be inside the docker container and the ns3 files should be built. 
 
-### Step 4: build your stuff 
+### Step 4: Build NS3 build files (Only Needed Once)
+```bash
+    mkdir /project/build
+    cd /project/build
+    cmake .. -DNS3_CXX_STANDARD=23  # maybe not needed not sure but do it anyways
+    cmake --build .
+```
+
+Now the entire project including ns3 is built and ready to run. To run just do ./tdde35-runner in the build folder
+
+## Running Simulations
+To run the simulation, make necessary changes to cmakefiles.txt if needed, then;
+
+### Step 1: Boot into docker 
+```bash
+docker-compose up -d
+```
+### Step 2: Build
+```bash
+    cd build 
+    cmake .. -DNS3_CXX_STANDARD=23  # maybe not needed not sure but do it anyways
+    cmake --build .
+```
+
+### Step 3: Run your executable
+```bash
+    ./tdde35-runner  # example maybe different depending on cmakefiles.txt
+```
 
 
 ## Updating NS-3
@@ -52,12 +78,6 @@ Then everyone else needs to run:
 ```bash
 git pull
 git submodule update --recursive
-```
-
-## Running Simulations
-
-```bash
- create a bash script to run the simulation see simpletest.sh in the project root 
 ```
 
 ## 📚 Documentation Resources

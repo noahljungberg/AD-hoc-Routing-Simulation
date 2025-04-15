@@ -1,5 +1,6 @@
-#include "Simulations/StaticSimulation.hpp"  // Not StaticSimulation.h
+#include "Simulations/StaticSimulation.hpp"
 
+NS_LOG_COMPONENT_DEFINE("StaticSimulation");
 StaticSimulation::StaticSimulation(const int numNodes, const double simulationTime) {
     m_numNodes = numNodes;
     m_simulationTime = simulationTime;
@@ -25,6 +26,8 @@ void StaticSimulation::SetupTopology() {
 void StaticSimulation::SetupRoutingProtocol() {
     // Choose which protocol to use
     SetupDSDV();  // For now, just use DSDV
+
+    m_flowMonitor = m_flowHelper.InstallAll();
 }
 
 void StaticSimulation::ConfigureApplications() {
@@ -55,6 +58,25 @@ void StaticSimulation::RunSimulation() {
 }
 
 void StaticSimulation::CollectResults() {
-    // You can add result collection logic here
-    std::cout << "Simulation completed successfully." << std::endl;
+    NS_LOG_INFO("Simulation completed. Collecting results...");
+
+    // Get FlowMonitor statistics
+    m_flowMonitor->CheckForLostPackets();
+    Ptr<Ipv4FlowClassifier> classifier = DynamicCast<Ipv4FlowClassifier>(m_flowHelper.GetClassifier());
+    std::map<FlowId, FlowMonitor::FlowStats> stats = m_flowMonitor->GetFlowStats();
+
+    // Print flow statistics
+    for (std::map<FlowId, FlowMonitor::FlowStats>::const_iterator i = stats.begin(); i != stats.end(); ++i) {
+        Ipv4FlowClassifier::FiveTuple t = classifier->FindFlow(i->first);
+
+        std::cout << "Flow " << i->first << " (" << t.sourceAddress << " -> " << t.destinationAddress << ")\n";
+        std::cout << "  Tx Packets: " << i->second.txPackets << "\n";
+        std::cout << "  Rx Packets: " << i->second.rxPackets << "\n";
+        std::cout << "  Throughput: " << i->second.rxBytes * 8.0 / (i->second.timeLastRxPacket.GetSeconds() - i->second.timeFirstTxPacket.GetSeconds()) / 1000 << " Kbps\n";
+        std::cout << "  Mean Delay: " << i->second.delaySum.GetSeconds() / i->second.rxPackets << " seconds\n";
+        std::cout << "  Packet Loss: " << 100.0 * (i->second.txPackets - i->second.rxPackets) / i->second.txPackets << "%\n";
+    }
+
+    // Save detailed FlowMonitor results to XML
+    m_flowMonitor->SerializeToXmlFile("flow-stats.xml", true, true);
 }
