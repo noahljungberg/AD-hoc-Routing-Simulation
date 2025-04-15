@@ -1,9 +1,10 @@
 #include "Simulations/StaticSimulation.hpp"
 
 NS_LOG_COMPONENT_DEFINE("StaticSimulation");
-StaticSimulation::StaticSimulation(const int numNodes, const double simulationTime) {
+StaticSimulation::StaticSimulation(const int numNodes, const double simulationTime, const std::string& routingProtocol) {
     m_numNodes = numNodes;
     m_simulationTime = simulationTime;
+    m_routingProtocol = routingProtocol;
 }
 
 StaticSimulation::~StaticSimulation() {}
@@ -25,7 +26,20 @@ void StaticSimulation::SetupTopology() {
 
 void StaticSimulation::SetupRoutingProtocol() {
     // Choose which protocol to use
-    SetupDSDV();  // For now, just use DSDV
+    switch (m_routingProtocol) {
+        case "DSDV":
+            SetupDSDV();
+            break;
+        case "DSR":
+            SetupDSR();
+            break;
+        case "GPSR":
+            SetupGPSR();
+            break;
+        default:
+            NS_LOG_ERROR("Invalid routing protocol selected.");
+            return;
+    }
 
     m_flowMonitor = m_flowHelper.InstallAll();
 }
@@ -78,5 +92,5 @@ void StaticSimulation::CollectResults() {
     }
 
     // Save detailed FlowMonitor results to XML
-    m_flowMonitor->SerializeToXmlFile("flow-stats.xml", true, true);
+    m_flowMonitor->SerializeToXmlFile(m_routingProtocol + "-flow-stats.xml", true, true);
 }

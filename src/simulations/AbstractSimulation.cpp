@@ -47,7 +47,15 @@ void AbstractSimulation::SetupDSDV() {
 
 // Add stubs for the other protocol methods
 void AbstractSimulation::SetupDSR() {
-    // Implementation will come later
+    DsrHelper dsr;
+    InternetStackHelper internet;
+    internet.SetRoutingHelper(dsr);
+    internet.Install(m_nodes);
+    // Configure IP addressing
+
+    Ipv4AddressHelper ipv4;
+    ipv4.SetBase("10.1.1.0", "255.255.255.0");
+    m_interfaces = ipv4.Assign(m_devices);
 }
 
 void AbstractSimulation::SetupGPSR() {

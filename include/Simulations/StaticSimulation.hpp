@@ -21,7 +21,7 @@
 
 class StaticSimulation : public AbstractSimulation {
   public:
-    StaticSimulation(const int numNodes, const double simulationTime);
+    StaticSimulation(const int numNodes, const double simulationTime, const std::string& routingProtocol);
     ~StaticSimulation() override;
 
   protected:
