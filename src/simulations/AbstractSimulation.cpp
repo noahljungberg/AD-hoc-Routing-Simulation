@@ -14,17 +14,24 @@ void AbstractSimulation::SetupNetwork() {
     m_nodes.Create(m_numNodes);
 
     WifiHelper wifi;
-    wifi.SetStandard(WIFI_STANDARD_80211b);  // Changed from WIFI_PHY_STANDARD_80211b
+    wifi.SetStandard(WIFI_STANDARD_80211b);
 
-    // Create these objects directly, not using static Default() method
-    YansWifiPhyHelper wifiPhy;
+    // Create and configure channel with propagation models
     YansWifiChannelHelper wifiChannel;
-    wifiPhy.SetChannel(wifiChannel.Create());
+    wifiChannel.SetPropagationDelay("ns3::ConstantSpeedPropagationDelayModel");
+    wifiChannel.AddPropagationLoss("ns3::FriisPropagationLossModel");
 
+    // Create and configure PHY
+    YansWifiPhyHelper wifiPhy;
+    wifiPhy.SetChannel(wifiChannel.Create());
+    // Optional: Configure other PHY parameters
+    wifiPhy.SetErrorRateModel("ns3::YansErrorRateModel");
+
+    // Create and configure MAC
     WifiMacHelper wifiMac;
     wifiMac.SetType("ns3::AdhocWifiMac");
 
-    // Use m_nodes (member variable) instead of nodes
+    // Install on nodes
     m_devices = wifi.Install(wifiPhy, wifiMac, m_nodes);
 }
 
