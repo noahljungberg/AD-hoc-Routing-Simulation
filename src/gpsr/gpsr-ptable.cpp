@@ -3,6 +3,10 @@
 #include "ns3/log.h"
 #include <algorithm>
 #include <cmath>
+#include <complex>
+#include "ns3/node-list.h"
+#include "ns3/node.h"
+#include "ns3/mobility-model.h"
 
 namespace ns3 {
 
@@ -46,8 +50,8 @@ GpsrPtable::DeleteEntry(Ipv4Address id)
   m_table.erase(id);
 }
 
-Vector
-GpsrPtable::GetPosition(Ipv4Address id)
+  Vector
+  GpsrPtable::GetPosition(Ipv4Address id)
 {
   std::map<Ipv4Address, std::pair<Vector, Time> >::iterator i = m_table.find(id);
   if (i != m_table.end()) {
@@ -55,8 +59,7 @@ GpsrPtable::GetPosition(Ipv4Address id)
   }
 
   // If not found in table, try to get it from node list
-  NodeList::Iterator listEnd = NodeList::End();
-  for (NodeList::Iterator i = NodeList::Begin(); i != listEnd; i++) {
+  for (NodeList::Iterator i = NodeList::Begin(); i != NodeList::End(); i++) {
     Ptr<Node> node = *i;
     if (node->GetObject<Ipv4>() &&
         node->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal() == id) {
@@ -64,7 +67,7 @@ GpsrPtable::GetPosition(Ipv4Address id)
       if (mobility) {
         return mobility->GetPosition();
       }
-    }
+        }
   }
 
   return GetInvalidPosition();
@@ -180,8 +183,8 @@ GpsrPtable::BestAngle(Vector prevHop, Vector nodePos)
   return bestFoundId;
 }
 
-double
-GpsrPtable::GetAngle(Vector center, Vector refPos, Vector node)
+  double
+  GpsrPtable::GetAngle(Vector center, Vector refPos, Vector node)
 {
   const double PI = 3.14159265358979323846;
 
@@ -194,15 +197,15 @@ GpsrPtable::GetAngle(Vector center, Vector refPos, Vector node)
   std::complex<double> AC = C - A;
 
   // Normalize vectors
-  AB = std::complex<double>(real(AB)/std::abs(AB), imag(AB)/std::abs(AB));
-  AC = std::complex<double>(real(AC)/std::abs(AC), imag(AC)/std::abs(AC));
+  AB = std::complex<double>(std::real(AB)/std::abs(AB), std::imag(AB)/std::abs(AB));
+  AC = std::complex<double>(std::real(AC)/std::abs(AC), std::imag(AC)/std::abs(AC));
 
   // Calculate angle
   std::complex<double> tmp = std::log(AC/AB);
   std::complex<double> Angle = tmp * std::complex<double>(0.0, -1.0);
   Angle *= (180/PI);
 
-  double angle = real(Angle);
+  double angle = std::real(Angle);
   if (angle < 0) {
     angle = 360 + angle;
   }

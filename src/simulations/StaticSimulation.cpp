@@ -57,9 +57,9 @@ void StaticSimulation::ConfigureApplications() {
 }
 
 void StaticSimulation::RunSimulation() {
-    ns3::Simulator::Stop(ns3::Seconds(m_simulationTime));
-    ns3::Simulator::Run();
-    ns3::Simulator::Destroy();
+    Simulator::Stop(ns3::Seconds(m_simulationTime));
+    Simulator::Run();
+    Simulator::Destroy();
 }
 
 void StaticSimulation::CollectResults() {

@@ -14,6 +14,12 @@ add_executable(tdde35-runner
     src/main.cpp
     src/simulations/AbstractSimulation.cpp
     src/simulations/StaticSimulation.cpp
+            src/simulations/StaticSimulationGPSR.cpp
+    src/gpsr/gpsr.cpp
+    src/gpsr/gpsr-helper.cpp
+    src/gpsr/gpsr-packet.cpp
+    src/gpsr/gpsr-ptable.cpp
+    src/gpsr/gpsr-rqueue.cpp
 )
 
 # Link with ns-3 modules

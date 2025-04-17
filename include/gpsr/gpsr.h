@@ -41,15 +41,23 @@ public:
 
   // From Ipv4RoutingProtocol
   Ptr<Ipv4Route> RouteOutput(Ptr<Packet> p, const Ipv4Header &header, Ptr<NetDevice> oif, Socket::SocketErrno &sockerr);
-  bool RouteInput(Ptr<const Packet> p, const Ipv4Header &header, Ptr<const NetDevice> idev,
-                 UnicastForwardCallback ucb, MulticastForwardCallback mcb,
-                 LocalDeliverCallback lcb, ErrorCallback ecb);
+  virtual bool RouteInput(Ptr<const Packet> p, const Ipv4Header &header,
+                      Ptr<const NetDevice> idev,
+                      const UnicastForwardCallback &ucb,
+                      const MulticastForwardCallback &mcb,
+                      const LocalDeliverCallback &lcb,
+                      const ErrorCallback &ecb);
   virtual void NotifyInterfaceUp(uint32_t interface);
   virtual void NotifyInterfaceDown(uint32_t interface);
   virtual void NotifyAddAddress(uint32_t interface, Ipv4InterfaceAddress address);
   virtual void NotifyRemoveAddress(uint32_t interface, Ipv4InterfaceAddress address);
   virtual void SetIpv4(Ptr<Ipv4> ipv4);
   virtual void PrintRoutingTable(Ptr<OutputStreamWrapper> stream, Time::Unit unit = Time::S) const;
+  virtual void AddHeaders (Ptr<Packet> p, Ipv4Address source, Ipv4Address destination, uint8_t protocol, Ptr<Ipv4Route> route);
+    virtual int GetProtocolNumber(void) const;
+    virtual void SetDownTarget(IpL4Protocol::DownTargetCallback callback);
+    virtual IpL4Protocol::DownTargetCallback GetDownTarget(void) const;
+
 
   // GPSR specific methods
   void RecvGpsr(Ptr<Socket> socket);

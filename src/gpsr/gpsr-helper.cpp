@@ -1,4 +1,4 @@
-#include "gpsr/gpsr-helper.h"
+#include "gpsr/gpsr-helper.hpp"
 #include "gpsr/gpsr.h"
 #include "ns3/node-list.h"
 #include "ns3/names.h"
@@ -12,8 +12,7 @@ namespace ns3 {
     GpsrHelper::GpsrHelper() :
       Ipv4RoutingHelper()
     {
-        m_agentFactory.SetTypeId("Gpsr");
-    }
+  m_agentFactory.SetTypeId("ns3::Gpsr");    }
 
     GpsrHelper*
     GpsrHelper::Copy() const

@@ -9,7 +9,7 @@
 #include "ns3/double.h"
 #include <algorithm>
 #include <limits>
-
+#include "ns3/wifi-mac.h"        // For WifiMac (was forward-declared but needs full definition)
 #define NS_LOG_APPEND_CONTEXT \
   if (m_ipv4) { std::clog << "[node " << m_ipv4->GetObject<Node> ()->GetId () << "] "; }
 
@@ -53,31 +53,31 @@ public:
 
 NS_OBJECT_ENSURE_REGISTERED(Gpsr);
 
-TypeId
-Gpsr::GetTypeId(void)
-{
-  static TypeId tid = TypeId("ns3::Gpsr")
-    .SetParent<Ipv4RoutingProtocol>()
-    .SetGroupName("Routing")
-    .AddConstructor<Gpsr>()
-    .AddAttribute("HelloInterval", "HELLO messages emission interval",
+  TypeId
+  Gpsr::GetTypeId(void)
+  {
+    static TypeId tid = TypeId("ns3::Gpsr")
+      .SetParent<Ipv4RoutingProtocol>()
+      .SetGroupName("Routing")
+      .AddConstructor<Gpsr>()
+      .AddAttribute("HelloInterval", "HELLO messages emission interval",
                    TimeValue(Seconds(1)),
                    MakeTimeAccessor(&Gpsr::m_helloInterval),
                    MakeTimeChecker())
-    .AddAttribute("MaxQueueLen", "Maximum length of the packet queue",
+      .AddAttribute("MaxQueueLen", "Maximum length of the packet queue",
                    UintegerValue(64),
                    MakeUintegerAccessor(&Gpsr::m_maxQueueLen),
                    MakeUintegerChecker<uint32_t>())
-    .AddAttribute("MaxQueueTime", "Maximum time a packet can stay in the queue",
+      .AddAttribute("MaxQueueTime", "Maximum time a packet can stay in the queue",
                    TimeValue(Seconds(30)),
                    MakeTimeAccessor(&Gpsr::m_maxQueueTime),
                    MakeTimeChecker())
-    .AddAttribute("PerimeterMode", "Enable perimeter mode for recovery",
+      .AddAttribute("PerimeterMode", "Enable perimeter mode for recovery",
                    BooleanValue(true),
                    MakeBooleanAccessor(&Gpsr::m_perimeterMode),
                    MakeBooleanChecker());
-  return tid;
-}
+    return tid;
+  }
 
 Gpsr::Gpsr() :
   m_helloInterval(Seconds(1)),
@@ -86,8 +86,9 @@ Gpsr::Gpsr() :
   m_queue(m_maxQueueLen, m_maxQueueTime),
   m_perimeterMode(true)
 {
-  m_helloTimer.SetFunction(&Gpsr::SendHello, this);
-  m_queueTimer.SetFunction(&Gpsr::CheckQueue, this);
+    // Initialize but don't schedule yet
+    m_helloTimer.SetFunction(&Gpsr::SendHello, this);
+    m_queueTimer.SetFunction(&Gpsr::CheckQueue, this);
 }
 
 Gpsr::~Gpsr()
@@ -104,9 +105,14 @@ Gpsr::DoDispose()
 void
 Gpsr::DoInitialize()
 {
-  m_helloTimer.Schedule(Seconds(0));
-  m_queueTimer.Schedule(Seconds(0.5));
-  Ipv4RoutingProtocol::DoInitialize();
+    m_helloTimer.Cancel();
+    m_queueTimer.Cancel();
+
+    // Schedule with a small delay to ensure the simulator is ready
+    m_helloTimer.Schedule(MilliSeconds(100));
+    m_queueTimer.Schedule(MilliSeconds(500));
+
+    Ipv4RoutingProtocol::DoInitialize();
 }
 
 void
@@ -116,10 +122,10 @@ Gpsr::Start()
   m_neighbors.Clear();
 }
 
-bool
-Gpsr::RouteInput(Ptr<const Packet> p, const Ipv4Header &header, Ptr<const NetDevice> idev,
-                UnicastForwardCallback ucb, MulticastForwardCallback mcb,
-                LocalDeliverCallback lcb, ErrorCallback ecb)
+  bool
+  Gpsr::RouteInput(Ptr<const Packet> p, const Ipv4Header &header, Ptr<const NetDevice> idev,
+                  const UnicastForwardCallback &ucb, const MulticastForwardCallback &mcb,
+                  const LocalDeliverCallback &lcb, const ErrorCallback &ecb)
 {
   NS_LOG_FUNCTION(this << p->GetUid() << header.GetDestination() << idev->GetAddress());
 
@@ -128,8 +134,8 @@ Gpsr::RouteInput(Ptr<const Packet> p, const Ipv4Header &header, Ptr<const NetDev
     return false;
   }
 
-  NS_ASSERT(m_ipv4 != 0);
-  NS_ASSERT(p != 0);
+  NS_ASSERT(m_ipv4 != nullptr);
+  NS_ASSERT(p != nullptr);
 
   // Check if input device supports IP
   NS_ASSERT(m_ipv4->GetInterfaceForDevice(idev) >= 0);
@@ -236,7 +242,7 @@ Gpsr::NotifyInterfaceUp(uint32_t interface)
   // Create a socket to listen only on this interface
   Ptr<Socket> socket = Socket::CreateSocket(GetObject<Node>(),
                                          UdpSocketFactory::GetTypeId());
-  NS_ASSERT(socket != 0);
+  NS_ASSERT(socket != nullptr);
   socket->SetRecvCallback(MakeCallback(&Gpsr::RecvGpsr, this));
   socket->Bind(InetSocketAddress(Ipv4Address::GetAny(), GPSR_PORT));
   socket->BindToNetDevice(l3->GetNetDevice(interface));
@@ -305,7 +311,7 @@ Gpsr::NotifyAddAddress(uint32_t interface, Ipv4InterfaceAddress address)
       // Create a socket to listen only on this interface
       Ptr<Socket> socket = Socket::CreateSocket(GetObject<Node>(),
                                              UdpSocketFactory::GetTypeId());
-      NS_ASSERT(socket != 0);
+      NS_ASSERT(socket != nullptr);
       socket->SetRecvCallback(MakeCallback(&Gpsr::RecvGpsr, this));
       socket->Bind(InetSocketAddress(Ipv4Address::GetAny(), GPSR_PORT));
       socket->BindToNetDevice(l3->GetNetDevice(interface));
@@ -334,7 +340,7 @@ Gpsr::NotifyRemoveAddress(uint32_t interface, Ipv4InterfaceAddress address)
       // Create a socket to listen only on this interface
       Ptr<Socket> socket = Socket::CreateSocket(GetObject<Node>(),
                                              UdpSocketFactory::GetTypeId());
-      NS_ASSERT(socket != 0);
+      NS_ASSERT(socket != nullptr);
       socket->SetRecvCallback(MakeCallback(&Gpsr::RecvGpsr, this));
       socket->Bind(InetSocketAddress(Ipv4Address::GetAny(), GPSR_PORT));
       socket->SetAllowBroadcast(true);
@@ -350,11 +356,10 @@ Gpsr::NotifyRemoveAddress(uint32_t interface, Ipv4InterfaceAddress address)
   }
 }
 
-void
-Gpsr::SetIpv4(Ptr<Ipv4> ipv4)
+void Gpsr::SetIpv4(Ptr<Ipv4> ipv4)
 {
-  NS_ASSERT(ipv4 != 0);
-  NS_ASSERT(m_ipv4 == 0);
+  NS_ASSERT(ipv4 != nullptr);
+  NS_ASSERT(m_ipv4 == nullptr);
 
   m_ipv4 = ipv4;
 
@@ -373,8 +378,7 @@ Gpsr::SetIpv4(Ptr<Ipv4> ipv4)
   Simulator::ScheduleNow(&Gpsr::Start, this);
 }
 
-void
-Gpsr::SendHello()
+void Gpsr::SendHello()
 {
   NS_LOG_FUNCTION(this);
 
@@ -777,6 +781,39 @@ IpL4Protocol::DownTargetCallback
 Gpsr::GetDownTarget(void) const
 {
   return m_downTarget;
+}
+
+  void
+  Gpsr::AddHeaders(Ptr<Packet> p, Ipv4Address source, Ipv4Address destination,
+                  uint8_t protocol, Ptr<Ipv4Route> route)
+{
+  NS_LOG_FUNCTION(this << p << source << destination << (uint32_t)protocol);
+
+  // Get my position from mobility model
+  Vector myPos;
+  Ptr<MobilityModel> MM = m_ipv4->GetObject<MobilityModel>();
+
+  if (MM) {
+    myPos.x = MM->GetPosition().x;
+    myPos.y = MM->GetPosition().y;
+  } else {
+    NS_LOG_WARN("No mobility model attached to the node");
+    return;
+  }
+
+  // Add position header for GPSR routing
+  GpsrPositionHeader posHeader;
+  posHeader.SetDstPositionX(1); // Placeholder
+  posHeader.SetDstPositionY(1); // Placeholder
+  posHeader.SetLastPositionX(myPos.x);
+  posHeader.SetLastPositionY(myPos.y);
+
+  p->AddHeader(posHeader);
+
+  // Call the original down target with the modified packet
+  if (!m_downTarget.IsNull()) {
+    m_downTarget(p, source, destination, protocol, route);
+  }
 }
 
 } // namespace ns3
