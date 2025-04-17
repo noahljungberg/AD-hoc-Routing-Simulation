@@ -26,20 +26,11 @@ void StaticSimulation::SetupTopology() {
 
 void StaticSimulation::SetupRoutingProtocol() {
     // Choose which protocol to use
-    switch (m_routingProtocol) {
-        case "DSDV":
-            SetupDSDV();
-            break;
-        case "DSR":
-            SetupDSR();
-            break;
-        case "GPSR":
-            SetupGPSR();
-            break;
-        default:
-            NS_LOG_ERROR("Invalid routing protocol selected.");
-            return;
-    }
+    if (m_routingProtocol == "DSDV") SetupDSDV();
+    else if  (m_routingProtocol == "DSR") SetupDSR();
+    else if (m_routingProtocol == "GPSR")SetupGPSR();
+    else NS_LOG_ERROR("Invalid routing protocol selected.");
+
 
     m_flowMonitor = m_flowHelper.InstallAll();
 }

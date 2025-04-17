@@ -46,6 +46,8 @@ To run the simulation, make necessary changes to cmakefiles.txt if needed, then;
 ### Step 1: Boot into docker 
 ```bash
 docker-compose up -d
+docker-compose  exec ns3-dev bash
+
 ```
 ### Step 2: Build
 ```bash

@@ -47,17 +47,20 @@ void AbstractSimulation::SetupDSDV() {
 
 // Add stubs for the other protocol methods
 void AbstractSimulation::SetupDSR() {
-    DsrHelper dsr;
-    InternetStackHelper internet;
-    internet.SetRoutingHelper(dsr);
-    internet.Install(m_nodes);
-    // Configure IP addressing
-
-    Ipv4AddressHelper ipv4;
-    ipv4.SetBase("10.1.1.0", "255.255.255.0");
-    m_interfaces = ipv4.Assign(m_devices);
+    // pass
 }
 
 void AbstractSimulation::SetupGPSR() {
-    // Implementation will come later
+    // Create a GPSR helper
+    GpsrHelper gpsr;
+
+    // Install the GPSR routing protocol on all nodes
+    ns3::InternetStackHelper internet;
+    internet.SetRoutingHelper(gpsr);
+    internet.Install(m_nodes);
+
+    // Configure IP addressing
+    ns3::Ipv4AddressHelper ipv4;
+    ipv4.SetBase("10.1.1.0", "255.255.255.0");
+    m_interfaces = ipv4.Assign(m_devices);
 }

@@ -12,8 +12,8 @@ add_subdirectory(external/ns-3)
 # Create an executable with ALL your source files
 add_executable(tdde35-runner
     src/main.cpp
-    src/simulations/AbstractSimulation.cpp  # These were missing from your executable
-    src/simulations/StaticSimulation.cpp    # These were missing from your executable
+    src/simulations/AbstractSimulation.cpp
+    src/simulations/StaticSimulation.cpp
 )
 
 # Link with ns-3 modules
@@ -37,4 +37,5 @@ target_link_libraries(tdde35-runner
 target_include_directories(tdde35-runner
     PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
+
 )

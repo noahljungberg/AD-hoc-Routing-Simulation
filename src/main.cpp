@@ -7,7 +7,7 @@ int main(int argc, char *argv[]) {
     cmd.Parse(argc, argv);
 
     // Create and run the simulation
-    StaticSimulation sim(10, 10.0);  // 10 nodes, 10 seconds
+    StaticSimulation sim(10, 10.0, "DSDV");  // 10 nodes, 10 seconds
     LogComponentEnable("StaticSimulation", LOG_LEVEL_INFO);
 
     sim.Run();

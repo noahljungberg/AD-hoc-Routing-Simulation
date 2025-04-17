@@ -28,6 +28,10 @@
 #include "ns3/applications-module.h"
 #include "ns3/mobility-module.h"
 #include "ns3/flow-monitor-module.h"
+#include "ns3/dsr-module.h"
+#include "../gpsr/gpsr-helper.hpp"
+
+
 
 
 
