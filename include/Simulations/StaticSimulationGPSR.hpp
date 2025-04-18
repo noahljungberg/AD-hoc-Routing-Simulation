@@ -54,6 +54,18 @@ protected:
      * Collect and display simulation results
      */
     void CollectResults() override;
+
+private:
+ /**
+   * Capture the current state of the simulation
+   * Used for debugging and monitoring
+   */
+ void CaptureBriefState();
+
+ /**
+  * Print the routing tables for all nodes
+  */
+ void PrintRoutingTables();
 };
 
 #endif // STATICSIMULATIONGPSR_HPP

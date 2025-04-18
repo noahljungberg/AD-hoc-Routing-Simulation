@@ -6,6 +6,8 @@
 #include "ns3/node-container.h"
 #include "ns3/callback.h"
 #include "ns3/udp-l4-protocol.h"
+#include "ns3/log.h"
+NS_LOG_COMPONENT_DEFINE("GpsrHelper");  // Define the log component
 
 namespace ns3 {
 

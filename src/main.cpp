@@ -11,7 +11,7 @@ int main(int argc, char *argv[]) {
 
     // Create and run the appropriate simulation based on protocol
     if (protocol == "GPSR") {
-        StaticSimulationGPSR sim(10, 100.0);  // 10 nodes, 100 seconds
+        StaticSimulationGPSR sim(10, 30.0);  // 10 nodes, 100 seconds
         LogComponentEnable("StaticSimulationGPSR", LOG_LEVEL_INFO);
         sim.Run();
     } else {
