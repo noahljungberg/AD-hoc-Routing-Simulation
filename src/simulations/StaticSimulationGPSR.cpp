@@ -65,8 +65,7 @@ void StaticSimulationGPSR::SetupRoutingProtocol() {
 
     // Test the GPSR modules
     NS_LOG_INFO("Testing GPSR module functionality");
-    Ptr<ns3::Gpsr> gpsrInstance = gpsr.Create(m_nodes.Get(0));// Create a test instance
-
+    Ptr<ns3::Gpsr> gpsrInstance = CreateObject<ns3::Gpsr>();
     if (gpsrInstance) {
         NS_LOG_INFO("✓ Successfully created GPSR instance");
     } else {
@@ -96,7 +95,7 @@ static void UdpEchoTxTrace(Ptr<OutputStreamWrapper> stream, Ptr<const Packet> p)
     *stream->GetStream() << "TX: " << p->GetSize() << " bytes at " << Simulator::Now().GetSeconds() << " s\n";
 }
 
-static void UdpEchoRxTrace(Ptr<OutputStreamWrapper> stream, Ptr<const Packet> p, const Address &address) {
+static void UdpEchoRxTrace(Ptr<OutputStreamWrapper> stream, Ptr<const Packet> p) {
     *stream->GetStream() << "RX: " << p->GetSize() << " bytes at " << Simulator::Now().GetSeconds() << " s\n";
 }
 void StaticSimulationGPSR::ConfigureApplications() {
@@ -138,12 +137,9 @@ void StaticSimulationGPSR::RunSimulation() {
     AsciiTraceHelper ascii;
     Ptr<OutputStreamWrapper> routingStream = ascii.CreateFileStream("gpsr-routing.tr");
 
-    // Destroy simulator first to clear any previous state
-    Simulator::Destroy();
-
     // Enable GPSR debug output
     LogComponentEnable("Gpsr", LOG_LEVEL_DEBUG);
-    LogComponentEnable("GpsrHelper", LOG_LEVEL_INFO);  // This will work after adding the definition
+    LogComponentEnable("GpsrHelper", LOG_LEVEL_INFO);
     LogComponentEnable("GpsrPtable", LOG_LEVEL_INFO);
     LogComponentEnable("GpsrRqueue", LOG_LEVEL_INFO);
     LogComponentEnable("GpsrPacket", LOG_LEVEL_INFO);
@@ -155,7 +151,9 @@ void StaticSimulationGPSR::RunSimulation() {
     // Run the simulation
     Simulator::Stop(Seconds(m_simulationTime));
     Simulator::Run();
-    Simulator::Destroy();
+
+    // MOVE THIS TO THE END OF CollectResults() instead
+    // Simulator::Destroy();
 }
 
 void StaticSimulationGPSR::CaptureBriefState() {
@@ -228,6 +226,8 @@ void StaticSimulationGPSR::CollectResults() {
     // Add routing table state
     std::cout << "\n*** GPSR Routing Tables ***\n";
     PrintRoutingTables();
+
+    Simulator::Destroy();
 }
 
 void StaticSimulationGPSR::PrintRoutingTables() {
@@ -235,22 +235,28 @@ void StaticSimulationGPSR::PrintRoutingTables() {
     std::cout << "Node positions and addresses:\n";
 
     for (uint32_t i = 0; i < m_nodes.GetN(); i++) {
+        Ptr<Node> node = m_nodes.Get(i);
         std::cout << "Node " << i;
 
-        // Safely get the IP address
-        if (i < m_interfaces.GetN()) {
-            std::cout << " IP: " << m_interfaces.GetAddress(i);
-        } else {
-            std::cout << " IP: unknown";
-        }
+        // Get IP address directly from the node
+        if (node) {
+            Ptr<Ipv4> ipv4 = node->GetObject<Ipv4>();
+            if (ipv4 && ipv4->GetNInterfaces() > 1) { // Interface 0 is loopback
+                std::cout << " IP: " << ipv4->GetAddress(1, 0).GetLocal();
+            } else {
+                std::cout << " IP: unknown (no IPv4)";
+            }
 
-        // Safely get the position
-        Ptr<MobilityModel> mob = m_nodes.Get(i)->GetObject<MobilityModel>();
-        if (mob) {
-            Vector pos = mob->GetPosition();
-            std::cout << "  Position: (" << pos.x << ", " << pos.y << ")\n";
+            // Get position
+            Ptr<MobilityModel> mob = node->GetObject<MobilityModel>();
+            if (mob) {
+                Vector pos = mob->GetPosition();
+                std::cout << "  Position: (" << pos.x << ", " << pos.y << ")\n";
+            } else {
+                std::cout << "  Position: unknown (no mobility model)\n";
+            }
         } else {
-            std::cout << "  Position: unknown\n";
+            std::cout << " IP: unknown (no node)  Position: unknown\n";
         }
     }
 }
