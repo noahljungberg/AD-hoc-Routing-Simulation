@@ -17,6 +17,10 @@ void AbstractSimulation::SetupNetwork() {
 
     // Create and configure PHY
     YansWifiPhyHelper wifiPhy;
+    wifiPhy.Set("TxPowerStart", DoubleValue(20.0)); // dBm
+    wifiPhy.Set("TxPowerEnd", DoubleValue(20.0)); // dBm
+    wifiPhy.Set("TxGain", DoubleValue(1.0));
+    wifiPhy.Set("RxGain", DoubleValue(1.0));
     wifiPhy.SetChannel(wifiChannel.Create());
     // Optional: Configure other PHY parameters
     wifiPhy.SetErrorRateModel("ns3::YansErrorRateModel");

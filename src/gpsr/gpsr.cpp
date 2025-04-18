@@ -414,7 +414,7 @@ void Gpsr::SendHello()
     } else {
       destination = iface.GetBroadcast();
     }
-
+    NS_LOG_DEBUG("Sending HELLO message from node " << m_ipv4->GetObject<Node>()->GetId());
     socket->SendTo(packet, 0, InetSocketAddress(destination, GPSR_PORT));
   }
 

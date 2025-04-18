@@ -37,24 +37,37 @@ namespace ns3 {
     }
 
     void
-    GpsrHelper::Install() const
+GpsrHelper::Install() const
     {
         NodeContainer nodes = NodeContainer::GetGlobal();
+        NS_LOG_INFO("Installing GPSR on " << nodes.GetN() << " nodes");
 
         for (NodeContainer::Iterator i = nodes.Begin(); i != nodes.End(); ++i)
         {
             Ptr<Node> node = *i;
+            NS_LOG_INFO("Installing GPSR on node " << node->GetId());
 
-            // Get L4 protocol - this is generally UDP
-            Ptr<UdpL4Protocol> udp = node->GetObject<UdpL4Protocol>();
+            // Connect GPSR to IP layer
+            Ptr<Ipv4> ipv4 = node->GetObject<Ipv4>();
+            if (!ipv4) {
+                NS_LOG_ERROR("No IPv4 object found on node " << node->GetId());
+                continue;
+            }
 
-            // Get GPSR instance
+            // Make sure this call is included!
+            Ptr<Ipv4ListRouting> listRouting = DynamicCast<Ipv4ListRouting>(ipv4->GetRoutingProtocol());
+            if (!listRouting) {
+                NS_LOG_ERROR("No Ipv4ListRouting found on node " << node->GetId());
+                continue;
+            }
+
+            // Get GPSR instance and ensure it's at the top of the list
             Ptr<Gpsr> gpsr = node->GetObject<Gpsr>();
-
-            // Connect GPSR to UDP
-            if (gpsr && udp) {
-                gpsr->SetDownTarget(udp->GetDownTarget());
-                udp->SetDownTarget(MakeCallback(&Gpsr::AddHeaders, gpsr));
+            if (gpsr) {
+                listRouting->AddRoutingProtocol(gpsr, 10); // Higher priority number
+                NS_LOG_INFO("Successfully connected GPSR to IPv4 on node " << node->GetId());
+            } else {
+                NS_LOG_ERROR("No GPSR object found on node " << node->GetId());
             }
         }
     }
