@@ -1,4 +1,7 @@
 #include "Simulations/StaticSimulationGPSR.hpp"
+
+#include <gpsr/gpsr.h>
+
 #include "ns3/log.h"
 #include "gpsr/gpsr-helper.hpp"
 #include "ns3/internet-stack-helper.h"
@@ -60,10 +63,17 @@ void StaticSimulationGPSR::SetupRoutingProtocol() {
     // Create and configure GPSR helper
     GpsrHelper gpsr;
 
-    // You can set specific GPSR parameters here if needed
-    // Example: gpsr.Set("HelloInterval", TimeValue(Seconds(2.0)));
+    // Test the GPSR modules
+    NS_LOG_INFO("Testing GPSR module functionality");
+    Ptr<ns3::Gpsr> gpsrInstance = gpsr.Create(m_nodes.Get(0));// Create a test instance
 
-    // Install the internet stack with GPSR
+    if (gpsrInstance) {
+        NS_LOG_INFO("✓ Successfully created GPSR instance");
+    } else {
+        NS_LOG_ERROR("✗ Failed to create GPSR instance");
+    }
+
+    // Continue with installation
     InternetStackHelper internet;
     internet.SetRoutingHelper(gpsr);
     internet.Install(m_nodes);
@@ -73,64 +83,53 @@ void StaticSimulationGPSR::SetupRoutingProtocol() {
     ipv4.SetBase("10.1.1.0", "255.255.255.0");
     m_interfaces = ipv4.Assign(m_devices);
 
-    // Log IP addresses for easier debugging
+    // Log IP addresses
     for (uint32_t i = 0; i < m_nodes.GetN(); i++) {
-        NS_LOG_INFO("Node " << i << " has IP: " <<
-                    m_interfaces.GetAddress(i));
+        NS_LOG_INFO("Node " << i << " has IP: " << m_interfaces.GetAddress(i));
     }
 
     // Setup flow monitoring
     m_flowMonitor = m_flowHelper.InstallAll();
-    m_flowMonitor->SetAttribute("DelayBinWidth", DoubleValue(0.001));
-    m_flowMonitor->SetAttribute("JitterBinWidth", DoubleValue(0.001));
-    m_flowMonitor->SetAttribute("PacketSizeBinWidth", DoubleValue(20));
 }
 
+static void UdpEchoTxTrace(Ptr<OutputStreamWrapper> stream, Ptr<const Packet> p) {
+    *stream->GetStream() << "TX: " << p->GetSize() << " bytes at " << Simulator::Now().GetSeconds() << " s\n";
+}
+
+static void UdpEchoRxTrace(Ptr<OutputStreamWrapper> stream, Ptr<const Packet> p, const Address &address) {
+    *stream->GetStream() << "RX: " << p->GetSize() << " bytes at " << Simulator::Now().GetSeconds() << " s\n";
+}
 void StaticSimulationGPSR::ConfigureApplications() {
     NS_LOG_INFO("Setting up applications");
 
-    // Create a more bandwidth-intensive application to better test routing
+    // Use a simpler UDP echo server/client application
     uint16_t port = 9;
 
-    // Set up a packet sink on the last node
-    PacketSinkHelper sink("ns3::UdpSocketFactory",
-                         InetSocketAddress(Ipv4Address::GetAny(), port));
-    ApplicationContainer sinkApps = sink.Install(m_nodes.Get(m_numNodes - 1));
-    sinkApps.Start(Seconds(1.0));
-    sinkApps.Stop(Seconds(m_simulationTime));
+    // Create server on last node
+    UdpEchoServerHelper echoServer(port);
+    ApplicationContainer serverApps = echoServer.Install(m_nodes.Get(m_numNodes - 1));
+    serverApps.Start(Seconds(1.0));
+    serverApps.Stop(Seconds(m_simulationTime));
 
-    // Set up an OnOff source on the first node
-    OnOffHelper onoff("ns3::UdpSocketFactory",
-                     InetSocketAddress(m_interfaces.GetAddress(m_numNodes - 1), port));
-    onoff.SetConstantRate(DataRate("10kb/s"));
-    onoff.SetAttribute("PacketSize", UintegerValue(1024));
-    onoff.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1.0]"));
-    onoff.SetAttribute("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0.0]"));
+    // Create client on first node
+    UdpEchoClientHelper echoClient(m_interfaces.GetAddress(m_numNodes - 1), port);
+    echoClient.SetAttribute("MaxPackets", UintegerValue(200));  // Send more packets
+    echoClient.SetAttribute("Interval", TimeValue(Seconds(0.5)));  // Send faster
+    echoClient.SetAttribute("PacketSize", UintegerValue(512));
 
-    ApplicationContainer sourceApps = onoff.Install(m_nodes.Get(0));
-    sourceApps.Start(Seconds(2.0));
-    sourceApps.Stop(Seconds(m_simulationTime - 1.0));
+    ApplicationContainer clientApps = echoClient.Install(m_nodes.Get(0));
+    clientApps.Start(Seconds(2.0));
+    clientApps.Stop(Seconds(m_simulationTime - 1.0));
 
-    NS_LOG_INFO("Configured OnOff source on node 0 sending to node " << (m_numNodes - 1));
+    NS_LOG_INFO("Configured UDP Echo client on node 0 sending to node " << (m_numNodes - 1));
 
-    // Add a second flow in the opposite direction
-    OnOffHelper onoff2("ns3::UdpSocketFactory",
-                      InetSocketAddress(m_interfaces.GetAddress(0), port + 1));
-    onoff2.SetConstantRate(DataRate("5kb/s"));
-    onoff2.SetAttribute("PacketSize", UintegerValue(512));
-
-    PacketSinkHelper sink2("ns3::UdpSocketFactory",
-                          InetSocketAddress(Ipv4Address::GetAny(), port + 1));
-    ApplicationContainer sinkApps2 = sink2.Install(m_nodes.Get(0));
-    ApplicationContainer sourceApps2 = onoff2.Install(m_nodes.Get(m_numNodes - 1));
-
-    sinkApps2.Start(Seconds(1.0));
-    sourceApps2.Start(Seconds(3.0));
-    sinkApps2.Stop(Seconds(m_simulationTime));
-    sourceApps2.Stop(Seconds(m_simulationTime - 1.0));
-
-    NS_LOG_INFO("Configured second flow from node " << (m_numNodes - 1) << " to node 0");
+    // Enable tracing for debugging
+    AsciiTraceHelper ascii;
+    Ptr<OutputStreamWrapper> stream = ascii.CreateFileStream("gpsr-application.tr");
+    clientApps.Get(0)->TraceConnectWithoutContext("Tx", MakeBoundCallback(&UdpEchoTxTrace, stream));
+    serverApps.Get(0)->TraceConnectWithoutContext("Rx", MakeBoundCallback(&UdpEchoRxTrace, stream));
 }
+
 
 void StaticSimulationGPSR::RunSimulation() {
     NS_LOG_INFO("Starting GPSR simulation for " << m_simulationTime << " seconds");
@@ -232,16 +231,26 @@ void StaticSimulationGPSR::CollectResults() {
 }
 
 void StaticSimulationGPSR::PrintRoutingTables() {
-    // This is a simplified version - in a real implementation you'd
-    // access the actual GPSR tables from each node
-    for (uint32_t i = 0; i < m_nodes.GetN(); i++) {
-        Ptr<Ipv4> ipv4 = m_nodes.Get(i)->GetObject<Ipv4>();
-        std::cout << "Node " << i << " IP: " << m_interfaces.GetAddress(i) << "\n";
+    // Safely print routing information without causing null pointer exceptions
+    std::cout << "Node positions and addresses:\n";
 
-        // In a complete implementation, you would access the GPSR position tables here
-        // For now, just print node positions which are key to GPSR
+    for (uint32_t i = 0; i < m_nodes.GetN(); i++) {
+        std::cout << "Node " << i;
+
+        // Safely get the IP address
+        if (i < m_interfaces.GetN()) {
+            std::cout << " IP: " << m_interfaces.GetAddress(i);
+        } else {
+            std::cout << " IP: unknown";
+        }
+
+        // Safely get the position
         Ptr<MobilityModel> mob = m_nodes.Get(i)->GetObject<MobilityModel>();
-        Vector pos = mob->GetPosition();
-        std::cout << "  Position: (" << pos.x << ", " << pos.y << ")\n";
+        if (mob) {
+            Vector pos = mob->GetPosition();
+            std::cout << "  Position: (" << pos.x << ", " << pos.y << ")\n";
+        } else {
+            std::cout << "  Position: unknown\n";
+        }
     }
 }
