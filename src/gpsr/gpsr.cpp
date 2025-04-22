@@ -163,66 +163,66 @@ Gpsr::Start()
   return ForwardingGreedy(p, header, ucb, ecb);
 }
 
-Ptr<Ipv4Route>
-Gpsr::RouteOutput(Ptr<Packet> p, const Ipv4Header &header, Ptr<NetDevice> oif, Socket::SocketErrno &sockerr)
-{
-  NS_LOG_FUNCTION(this << header << (oif ? oif->GetIfIndex() : 0));
+  Ptr<Ipv4Route>
+  Gpsr::RouteOutput(Ptr<Packet> p, const Ipv4Header &header, Ptr<NetDevice> oif, Socket::SocketErrno &sockerr)
+  {
+    NS_LOG_FUNCTION(this << header << (oif ? oif->GetIfIndex() : 0));
 
-  if (!p) {
-    return LoopbackRoute(header, oif);
+    if (!p) {
+      return LoopbackRoute(header, oif);
+    }
+
+    if (m_socketAddresses.empty()) {
+      sockerr = Socket::ERROR_NOROUTETOHOST;
+      NS_LOG_LOGIC("No GPSR interfaces");
+      Ptr<Ipv4Route> route;
+      return route;
+    }
+
+    sockerr = Socket::ERROR_NOTERROR;
+    Ptr<Ipv4Route> route = Create<Ipv4Route>();
+    Ipv4Address dst = header.GetDestination();
+
+    Vector dstPos = Vector(1, 0, 0);
+    // Find destination position
+
+    // Create a tag
+    GpsrDeferredRouteTag tag;
+    if (!p->PeekPacketTag(tag)) {
+      p->AddPacketTag(tag);
+    }
+
+    // Get my position
+    Vector myPos;
+    Ptr<MobilityModel> MM = m_ipv4->GetObject<MobilityModel>();
+    if (MM) {
+      myPos.x = MM->GetPosition().x;
+      myPos.y = MM->GetPosition().y;
+    }
+
+    // Check if destination is a neighbor
+    Ipv4Address nextHop;
+    if (m_neighbors.IsNeighbor(dst)) {
+      nextHop = dst;
+    } else {
+      nextHop = m_neighbors.BestNeighbor(dstPos, myPos);
+    }
+
+    if (nextHop != Ipv4Address::GetZero()) {
+      route->SetDestination(dst);
+      route->SetSource(header.GetSource());
+      route->SetGateway(nextHop);
+
+      // FIXME: This only works for a single interface
+      route->SetOutputDevice(m_ipv4->GetNetDevice(1));
+
+      NS_LOG_DEBUG("Found route to " << dst << " via " << nextHop);
+      return route;
+    } else {
+      // No route found, defer for now
+      return LoopbackRoute(header, oif);
+    }
   }
-
-  if (m_socketAddresses.empty()) {
-    sockerr = Socket::ERROR_NOROUTETOHOST;
-    NS_LOG_LOGIC("No GPSR interfaces");
-    Ptr<Ipv4Route> route;
-    return route;
-  }
-
-  sockerr = Socket::ERROR_NOTERROR;
-  Ptr<Ipv4Route> route = Create<Ipv4Route>();
-  Ipv4Address dst = header.GetDestination();
-
-  Vector dstPos = Vector(1, 0, 0);
-  // Find destination position
-
-  // Create a tag
-  GpsrDeferredRouteTag tag;
-  if (!p->PeekPacketTag(tag)) {
-    p->AddPacketTag(tag);
-  }
-
-  // Get my position
-  Vector myPos;
-  Ptr<MobilityModel> MM = m_ipv4->GetObject<MobilityModel>();
-  if (MM) {
-    myPos.x = MM->GetPosition().x;
-    myPos.y = MM->GetPosition().y;
-  }
-
-  // Check if destination is a neighbor
-  Ipv4Address nextHop;
-  if (m_neighbors.IsNeighbor(dst)) {
-    nextHop = dst;
-  } else {
-    nextHop = m_neighbors.BestNeighbor(dstPos, myPos);
-  }
-
-  if (nextHop != Ipv4Address::GetZero()) {
-    route->SetDestination(dst);
-    route->SetSource(header.GetSource());
-    route->SetGateway(nextHop);
-
-    // FIXME: This only works for a single interface
-    route->SetOutputDevice(m_ipv4->GetNetDevice(1));
-
-    NS_LOG_DEBUG("Found route to " << dst << " via " << nextHop);
-    return route;
-  } else {
-    // No route found, defer for now
-    return LoopbackRoute(header, oif);
-  }
-}
 
 void
 Gpsr::NotifyInterfaceUp(uint32_t interface)
@@ -378,94 +378,99 @@ void Gpsr::SetIpv4(Ptr<Ipv4> ipv4)
   Simulator::ScheduleNow(&Gpsr::Start, this);
 }
 
-void Gpsr::SendHello()
-{
-  NS_LOG_FUNCTION(this);
+  void Gpsr::SendHello()
+  {
+    NS_LOG_FUNCTION(this);
 
-  // Get my position from mobility model
-  Vector myPos;
-  Ptr<MobilityModel> MM = m_ipv4->GetObject<MobilityModel>();
+    // Get my position from mobility model
+    Vector myPos;
+    Ptr<MobilityModel> MM = m_ipv4->GetObject<MobilityModel>();
 
-  if (MM) {
-    myPos.x = MM->GetPosition().x;
-    myPos.y = MM->GetPosition().y;
-  } else {
-    NS_LOG_WARN("No mobility model available");
-    return;
-  }
-
-  // Create hello packet with my position
-  for (std::map<Ptr<Socket>, Ipv4InterfaceAddress>::const_iterator j = m_socketAddresses.begin();
-        j != m_socketAddresses.end(); ++j) {
-    Ptr<Socket> socket = j->first;
-    Ipv4InterfaceAddress iface = j->second;
-
-    GpsrHelloHeader helloHeader((uint64_t)myPos.x, (uint64_t)myPos.y);
-
-    Ptr<Packet> packet = Create<Packet>();
-    packet->AddHeader(helloHeader);
-    GpsrTypeHeader typeHeader(GPSR_HELLO);
-    packet->AddHeader(typeHeader);
-
-    // Send to broadcast address
-    Ipv4Address destination;
-    if (iface.GetMask() == Ipv4Mask::GetOnes()) {
-      destination = Ipv4Address("255.255.255.255");
+    if (MM) {
+      myPos.x = MM->GetPosition().x;
+      myPos.y = MM->GetPosition().y;
     } else {
-      destination = iface.GetBroadcast();
+      NS_LOG_WARN("No mobility model available");
+      return;
     }
-    NS_LOG_DEBUG("Sending HELLO message from node " << m_ipv4->GetObject<Node>()->GetId());
-    socket->SendTo(packet, 0, InetSocketAddress(destination, GPSR_PORT));
+
+    // Create hello packet with my position
+    for (std::map<Ptr<Socket>, Ipv4InterfaceAddress>::const_iterator j = m_socketAddresses.begin();
+          j != m_socketAddresses.end(); ++j) {
+      Ptr<Socket> socket = j->first;
+      Ipv4InterfaceAddress iface = j->second;
+
+      GpsrHelloHeader helloHeader((uint64_t)myPos.x, (uint64_t)myPos.y);
+
+      Ptr<Packet> packet = Create<Packet>();
+      packet->AddHeader(helloHeader);
+      GpsrTypeHeader typeHeader(GPSR_HELLO);
+      packet->AddHeader(typeHeader);
+
+      // Send to broadcast address
+      Ipv4Address destination;
+      if (iface.GetMask() == Ipv4Mask::GetOnes()) {
+        destination = Ipv4Address("255.255.255.255");
+      } else {
+        destination = iface.GetBroadcast();
+      }
+
+      // Removed excessive log message here
+      socket->SendTo(packet, 0, InetSocketAddress(destination, GPSR_PORT));
+          }
+
+    // Schedule next hello message with jitter
+    double min = -1 * GPSR_MAX_JITTER;
+    double max = GPSR_MAX_JITTER;
+    Ptr<UniformRandomVariable> jitter = CreateObject<UniformRandomVariable>();
+    jitter->SetAttribute("Min", DoubleValue(min));
+    jitter->SetAttribute("Max", DoubleValue(max));
+
+    m_helloTimer.Schedule(m_helloInterval + Seconds(jitter->GetValue(min, max)));
   }
 
-  // Schedule next hello message with jitter
-  double min = -1 * GPSR_MAX_JITTER;
-  double max = GPSR_MAX_JITTER;
-  Ptr<UniformRandomVariable> jitter = CreateObject<UniformRandomVariable>();
-  jitter->SetAttribute("Min", DoubleValue(min));
-  jitter->SetAttribute("Max", DoubleValue(max));
-
-  m_helloTimer.Schedule(m_helloInterval + Seconds(jitter->GetValue(min, max)));
-}
-
-void
+  void
 Gpsr::RecvGpsr(Ptr<Socket> socket)
-{
-  NS_LOG_FUNCTION(this << socket);
+  {
+    NS_LOG_FUNCTION(this << socket);
 
-  Address sourceAddress;
-  Ptr<Packet> packet = socket->RecvFrom(sourceAddress);
+    Address sourceAddress;
+    Ptr<Packet> packet = socket->RecvFrom(sourceAddress);
 
-  GpsrTypeHeader typeHeader;
-  packet->RemoveHeader(typeHeader);
-  if (!typeHeader.IsValid()) {
-    NS_LOG_DEBUG("GPSR message " << packet->GetUid() << " with unknown type received: "
-                << typeHeader.Get() << ". Drop");
-    return;
-  }
-
-  switch (typeHeader.Get()) {
-    case GPSR_HELLO:
-    {
-      GpsrHelloHeader helloHeader;
-      packet->RemoveHeader(helloHeader);
-
-      Vector position;
-      position.x = helloHeader.GetPositionX();
-      position.y = helloHeader.GetPositionY();
-
-      InetSocketAddress inetSourceAddr = InetSocketAddress::ConvertFrom(sourceAddress);
-      Ipv4Address sender = inetSourceAddr.GetIpv4();
-
-      // Update neighbor position
-      UpdateRouteToNeighbor(sender, position);
-      break;
+    GpsrTypeHeader typeHeader;
+    packet->RemoveHeader(typeHeader);
+    if (!typeHeader.IsValid()) {
+      NS_LOG_DEBUG("GPSR message " << packet->GetUid() << " with unknown type received: "
+                  << typeHeader.Get() << ". Drop");
+      return;
     }
+
+    switch (typeHeader.Get()) {
+    case GPSR_HELLO:
+      {
+        GpsrHelloHeader helloHeader;
+        packet->RemoveHeader(helloHeader);
+
+        Vector position;
+        position.x = helloHeader.GetPositionX();
+        position.y = helloHeader.GetPositionY();
+
+        InetSocketAddress inetSourceAddr = InetSocketAddress::ConvertFrom(sourceAddress);
+        Ipv4Address sender = inetSourceAddr.GetIpv4();
+
+        // Update neighbor position
+        UpdateRouteToNeighbor(sender, position);
+
+        // Add debug to show neighbor discovery
+        NS_LOG_DEBUG("Received HELLO from " << sender << " at position ("
+                    << position.x << "," << position.y << ")");
+        break;
+      }
     default:
       NS_LOG_DEBUG("Unknown GPSR packet type: " << typeHeader.Get());
       break;
+    }
   }
-}
 
 void
 Gpsr::UpdateRouteToNeighbor(Ipv4Address neighbor, Vector position)
@@ -534,64 +539,70 @@ Gpsr::CheckQueue()
   }
 }
 
-bool
-Gpsr::SendPacketFromQueue(Ipv4Address dst)
-{
-  NS_LOG_FUNCTION(this << dst);
+  bool
+  Gpsr::SendPacketFromQueue(Ipv4Address dst)
+  {
+    NS_LOG_FUNCTION(this << dst);
 
-  GpsrQueueEntry queueEntry;
-  bool recovery = false;
+    GpsrQueueEntry queueEntry;
+    bool recovery = false;
 
-  // Get my position
-  Vector myPos;
-  Ptr<MobilityModel> MM = m_ipv4->GetObject<MobilityModel>();
-  if (MM) {
-    myPos.x = MM->GetPosition().x;
-    myPos.y = MM->GetPosition().y;
-  }
-
-  // Check if destination is a neighbor
-  Ipv4Address nextHop;
-  if (m_neighbors.IsNeighbor(dst)) {
-    nextHop = dst;
-  } else {
-    // Find destination position and then best neighbor
-    Vector dstPos = Vector(1, 0, 0);
-    nextHop = m_neighbors.BestNeighbor(dstPos, myPos);
-
-    if (nextHop == Ipv4Address::GetZero()) {
-      NS_LOG_LOGIC("No next hop found, going to recovery mode");
-      recovery = true;
+    // Get my position
+    Vector myPos;
+    Ptr<MobilityModel> MM = m_ipv4->GetObject<MobilityModel>();
+    if (MM) {
+      myPos.x = MM->GetPosition().x;
+      myPos.y = MM->GetPosition().y;
     }
-  }
 
-  if (recovery && m_perimeterMode) {
-    // Handle recovery mode
-    while (m_queue.Dequeue(dst, queueEntry)) {
-      RecoveryMode(dst, ConstCast<Packet>(queueEntry.GetPacket()), queueEntry.GetUnicastForwardCallback(), queueEntry.GetIpv4Header());
+    // Debug neighbor table contents
+    NS_LOG_DEBUG("Checking neighbors for " << dst << ", my position: (" << myPos.x << "," << myPos.y << ")");
+
+    // Check if destination is a neighbor
+    Ipv4Address nextHop;
+    if (m_neighbors.IsNeighbor(dst)) {
+      nextHop = dst;
+      NS_LOG_DEBUG("Destination " << dst << " is a direct neighbor");
+    } else {
+      // Find destination position and then best neighbor
+      Vector dstPos = Vector(1, 0, 0);
+      nextHop = m_neighbors.BestNeighbor(dstPos, myPos);
+
+      if (nextHop == Ipv4Address::GetZero()) {
+        NS_LOG_DEBUG("No next hop found for " << dst << ", entering recovery mode");
+        recovery = true;
+      } else {
+        NS_LOG_DEBUG("Next hop for " << dst << " is " << nextHop);
+      }
     }
-    return true;
-  } else if (nextHop != Ipv4Address::GetZero()) {
-    // Create route
-    Ptr<Ipv4Route> route = Create<Ipv4Route>();
-    route->SetDestination(dst);
-    route->SetGateway(nextHop);
-    route->SetOutputDevice(m_ipv4->GetNetDevice(1));
 
-    // Send all packets for this destination
-    while (m_queue.Dequeue(dst, queueEntry)) {
-      Ptr<Packet> p = ConstCast<Packet>(queueEntry.GetPacket());
-      UnicastForwardCallback ucb = queueEntry.GetUnicastForwardCallback();
-      Ipv4Header header = queueEntry.GetIpv4Header();
+    if (recovery && m_perimeterMode) {
+      // Handle recovery mode
+      while (m_queue.Dequeue(dst, queueEntry)) {
+        RecoveryMode(dst, ConstCast<Packet>(queueEntry.GetPacket()), queueEntry.GetUnicastForwardCallback(), queueEntry.GetIpv4Header());
+      }
+      return true;
+    } else if (nextHop != Ipv4Address::GetZero()) {
+      // Create route
+      Ptr<Ipv4Route> route = Create<Ipv4Route>();
+      route->SetDestination(dst);
+      route->SetGateway(nextHop);
+      route->SetOutputDevice(m_ipv4->GetNetDevice(1));
 
-      route->SetSource(header.GetSource());
-      ucb(route, p, header);
+      // Send all packets for this destination
+      while (m_queue.Dequeue(dst, queueEntry)) {
+        Ptr<Packet> p = ConstCast<Packet>(queueEntry.GetPacket());
+        UnicastForwardCallback ucb = queueEntry.GetUnicastForwardCallback();
+        Ipv4Header header = queueEntry.GetIpv4Header();
+
+        route->SetSource(header.GetSource());
+        ucb(route, p, header);
+      }
+      return true;
     }
-    return true;
-  }
 
-  return false;
-}
+    return false;
+  }
 
 bool
 Gpsr::ForwardingGreedy(Ptr<const Packet> p, const Ipv4Header &header,
@@ -647,50 +658,50 @@ Gpsr::ForwardingGreedy(Ptr<const Packet> p, const Ipv4Header &header,
   return false;
 }
 
-void
-Gpsr::RecoveryMode(Ipv4Address dst, Ptr<Packet> p, UnicastForwardCallback ucb, Ipv4Header header)
-{
-  NS_LOG_FUNCTION(this << dst);
+  void
+  Gpsr::RecoveryMode(Ipv4Address dst, Ptr<Packet> p, UnicastForwardCallback ucb, Ipv4Header header)
+  {
+    NS_LOG_FUNCTION(this << dst);
 
-  // Get my position
-  Vector myPos;
-  Ptr<MobilityModel> MM = m_ipv4->GetObject<MobilityModel>();
-  if (MM) {
-    myPos.x = MM->GetPosition().x;
-    myPos.y = MM->GetPosition().y;
+    // Get my position
+    Vector myPos;
+    Ptr<MobilityModel> MM = m_ipv4->GetObject<MobilityModel>();
+    if (MM) {
+      myPos.x = MM->GetPosition().x;
+      myPos.y = MM->GetPosition().y;
+    }
+
+    // Add position header in recovery mode
+    GpsrPositionHeader posHeader;
+    posHeader.SetDstPositionX(1); // FIXME: Set real destination position
+    posHeader.SetDstPositionY(1);
+    posHeader.SetUpdated(0);
+    posHeader.SetRecPositionX(myPos.x);
+    posHeader.SetRecPositionY(myPos.y);
+    posHeader.SetInRecovery(1);
+    posHeader.SetLastPositionX(myPos.x);
+    posHeader.SetLastPositionY(myPos.y);
+
+    p->AddHeader(posHeader);
+
+    // Use right-hand rule to find next hop
+    Vector prevPos = Vector(0, 0, 0); // FIXME: Should be previous hop position
+    Ipv4Address nextHop = m_neighbors.BestAngle(prevPos, myPos);
+
+    if (nextHop == Ipv4Address::GetZero()) {
+      NS_LOG_DEBUG("No neighbors found in recovery mode"); // Changed to DEBUG level
+      return;
+    }
+
+    Ptr<Ipv4Route> route = Create<Ipv4Route>();
+    route->SetDestination(dst);
+    route->SetGateway(nextHop);
+    route->SetSource(header.GetSource());
+    route->SetOutputDevice(m_ipv4->GetNetDevice(1));
+
+    NS_LOG_DEBUG("Recovery mode forwarding to " << dst << " via " << nextHop); // Changed to DEBUG level
+    ucb(route, p, header);
   }
-
-  // Add position header in recovery mode
-  GpsrPositionHeader posHeader;
-  posHeader.SetDstPositionX(1); // FIXME: Set real destination position
-  posHeader.SetDstPositionY(1);
-  posHeader.SetUpdated(0);
-  posHeader.SetRecPositionX(myPos.x);
-  posHeader.SetRecPositionY(myPos.y);
-  posHeader.SetInRecovery(1);
-  posHeader.SetLastPositionX(myPos.x);
-  posHeader.SetLastPositionY(myPos.y);
-
-  p->AddHeader(posHeader);
-
-  // Use right-hand rule to find next hop
-  Vector prevPos = Vector(0, 0, 0); // FIXME: Should be previous hop position
-  Ipv4Address nextHop = m_neighbors.BestAngle(prevPos, myPos);
-
-  if (nextHop == Ipv4Address::GetZero()) {
-    NS_LOG_LOGIC("No neighbors found in recovery mode, dropping packet");
-    return;
-  }
-
-  Ptr<Ipv4Route> route = Create<Ipv4Route>();
-  route->SetDestination(dst);
-  route->SetGateway(nextHop);
-  route->SetSource(header.GetSource());
-  route->SetOutputDevice(m_ipv4->GetNetDevice(1));
-
-  NS_LOG_LOGIC("Recovery mode forwarding to " << dst << " via " << nextHop);
-  ucb(route, p, header);
-}
 
 Ptr<Ipv4Route>
 Gpsr::LoopbackRoute(const Ipv4Header &header, Ptr<NetDevice> oif)

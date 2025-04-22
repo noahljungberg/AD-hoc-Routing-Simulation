@@ -33,8 +33,8 @@ GpsrPtable::GetEntryUpdateTime(Ipv4Address id)
   return Time(Seconds(0));
 }
 
-void
-GpsrPtable::AddEntry(Ipv4Address id, Vector position)
+  void
+  GpsrPtable::AddEntry(Ipv4Address id, Vector position)
 {
   std::map<Ipv4Address, std::pair<Vector, Time> >::iterator i = m_table.find(id);
   if (i != m_table.end()) {
@@ -42,6 +42,10 @@ GpsrPtable::AddEntry(Ipv4Address id, Vector position)
   }
 
   m_table.insert(std::make_pair(id, std::make_pair(position, Simulator::Now())));
+
+  // Add debug message for neighbor discovery
+  NS_LOG_DEBUG("Added neighbor " << id << " at position (" << position.x << "," << position.y
+                << "), table size: " << m_table.size());
 }
 
 void
@@ -73,19 +77,20 @@ GpsrPtable::DeleteEntry(Ipv4Address id)
   return GetInvalidPosition();
 }
 
-bool
-GpsrPtable::IsNeighbor(Ipv4Address id)
+  bool
+  GpsrPtable::IsNeighbor(Ipv4Address id)
 {
   std::map<Ipv4Address, std::pair<Vector, Time> >::iterator i = m_table.find(id);
   if (i != m_table.end()) {
+    NS_LOG_DEBUG("Found " << id << " as a neighbor");
     return true;
   }
 
+  NS_LOG_DEBUG("Address " << id << " is not a neighbor");
   return false;
 }
-
-void
-GpsrPtable::Purge()
+  void
+  GpsrPtable::Purge()
 {
   if (m_table.empty()) {
     return;
@@ -96,12 +101,17 @@ GpsrPtable::Purge()
   std::map<Ipv4Address, std::pair<Vector, Time> >::iterator i = m_table.begin();
   for (; i != m_table.end(); ++i) {
     if (m_entryLifetime + i->second.second <= Simulator::Now()) {
+      NS_LOG_DEBUG("Purging expired neighbor entry for " << i->first);
       toErase.push_back(i->first);
     }
   }
 
   for (std::list<Ipv4Address>::iterator it = toErase.begin(); it != toErase.end(); ++it) {
     m_table.erase(*it);
+  }
+
+  if (!toErase.empty()) {
+    NS_LOG_DEBUG("Purged " << toErase.size() << " expired neighbors, table size now: " << m_table.size());
   }
 }
 
@@ -117,8 +127,8 @@ GpsrPtable::GetTxErrorCallback() const
   return m_txErrorCallback;
 }
 
-Ipv4Address
-GpsrPtable::BestNeighbor(Vector position, Vector nodePos)
+  Ipv4Address
+  GpsrPtable::BestNeighbor(Vector position, Vector nodePos)
 {
   Purge();
 
@@ -126,7 +136,7 @@ GpsrPtable::BestNeighbor(Vector position, Vector nodePos)
   double initialDistance = CalculateDistance(nodePos, position);
 
   if (m_table.empty()) {
-    NS_LOG_DEBUG("BestNeighbor table is empty; Position: " << position);
+    NS_LOG_DEBUG("BestNeighbor table is empty - no neighbors discovered yet");
     return Ipv4Address::GetZero();
   }
 
@@ -134,20 +144,30 @@ GpsrPtable::BestNeighbor(Vector position, Vector nodePos)
   Ipv4Address bestFoundId = m_table.begin()->first;
   double bestFoundDistance = CalculateDistance(m_table.begin()->second.first, position);
 
-  std::map<Ipv4Address, std::pair<Vector, Time> >::iterator i;
-  for (i = m_table.begin(); i != m_table.end(); ++i) {
+  NS_LOG_DEBUG("Looking for best neighbor to reach (" << position.x << "," << position.y
+                << "), my position: (" << nodePos.x << "," << nodePos.y << ")");
+  NS_LOG_DEBUG("My distance to destination: " << initialDistance);
+
+  // Log all neighbors and their distances
+  for (std::map<Ipv4Address, std::pair<Vector, Time> >::iterator i = m_table.begin();
+       i != m_table.end(); ++i) {
     double distance = CalculateDistance(i->second.first, position);
+    NS_LOG_DEBUG("  Neighbor " << i->first << " at (" << i->second.first.x << ","
+                 << i->second.first.y << "), distance: " << distance);
+
     if (bestFoundDistance > distance) {
       bestFoundId = i->first;
       bestFoundDistance = distance;
     }
-  }
+       }
 
   // Only return neighbor if it's closer to destination than current node
   if (initialDistance > bestFoundDistance) {
+    NS_LOG_DEBUG("Selected neighbor " << bestFoundId << " with distance " << bestFoundDistance);
     return bestFoundId;
   } else {
     // No neighbor closer - return empty address to trigger recovery
+    NS_LOG_DEBUG("No neighbor is closer to destination than myself");
     return Ipv4Address::GetZero();
   }
 }

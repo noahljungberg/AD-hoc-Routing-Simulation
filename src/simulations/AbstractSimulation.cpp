@@ -10,19 +10,21 @@ void AbstractSimulation::SetupNetwork() {
     WifiHelper wifi;
     wifi.SetStandard(WIFI_STANDARD_80211b);
 
-    // Create and configure channel with propagation models
+    // Create a simpler channel with extended range
     YansWifiChannelHelper wifiChannel;
     wifiChannel.SetPropagationDelay("ns3::ConstantSpeedPropagationDelayModel");
-    wifiChannel.AddPropagationLoss("ns3::FriisPropagationLossModel");
 
-    // Create and configure PHY
+    // Use RangePropagationLossModel for simplicity with extended range
+    wifiChannel.AddPropagationLoss("ns3::RangePropagationLossModel",
+                                  "MaxRange", DoubleValue(250.0)); // Increase range to 250m
+
+    // Create and configure PHY with higher power
     YansWifiPhyHelper wifiPhy;
-    wifiPhy.Set("TxPowerStart", DoubleValue(20.0)); // dBm
-    wifiPhy.Set("TxPowerEnd", DoubleValue(20.0)); // dBm
-    wifiPhy.Set("TxGain", DoubleValue(1.0));
-    wifiPhy.Set("RxGain", DoubleValue(1.0));
     wifiPhy.SetChannel(wifiChannel.Create());
-    // Optional: Configure other PHY parameters
+    wifiPhy.Set("TxPowerStart", DoubleValue(20.0)); // Higher power in dBm
+    wifiPhy.Set("TxPowerEnd", DoubleValue(20.0));   // Higher power in dBm
+    wifiPhy.Set("RxGain", DoubleValue(5.0));       // Increased receiver gain
+
     wifiPhy.SetErrorRateModel("ns3::YansErrorRateModel");
 
     // Create and configure MAC

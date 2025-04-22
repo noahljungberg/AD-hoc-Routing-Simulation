@@ -26,7 +26,7 @@ docker-compose build
 ```bash
 docker-compose up -d
 
-docker exec -it ns3-dev bash # this will open a bash shell inside the docker container 
+docker-compose exec -it ns3-dev bash # this will open a bash shell inside the docker container 
 
 ```
 

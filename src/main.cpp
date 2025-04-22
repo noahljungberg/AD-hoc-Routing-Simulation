@@ -12,23 +12,28 @@ int main(int argc, char *argv[]) {
     cmd.AddValue("debug", "Enable debug mode with verbose logging", debug);
     cmd.Parse(argc, argv);
 
-    // Set up additional logging if debug is enabled
+    // Set up logging with reduced verbosity
     if (debug) {
-        ns3::LogComponentEnableAll(ns3::LOG_PREFIX_ALL);
-        ns3::LogComponentEnableAll(ns3::LOG_LEVEL_INFO);
+        // Only enable selective components if debug is requested
+        ns3::LogComponentEnable("StaticSimulationGPSR", LOG_LEVEL_INFO);
+        ns3::LogComponentEnable("Gpsr", LOG_LEVEL_DEBUG);
+        ns3::LogComponentEnable("GpsrHelper", LOG_LEVEL_INFO);
+        ns3::LogComponentEnable("GpsrPtable", LOG_LEVEL_DEBUG);
+    } else {
+        // Otherwise keep logging minimal
+        ns3::LogComponentEnable("StaticSimulationGPSR", LOG_LEVEL_WARN);
+        ns3::LogComponentEnable("Gpsr", LOG_LEVEL_WARN);
+        ns3::LogComponentEnable("GpsrPtable", LOG_LEVEL_WARN);
     }
 
     try {
         // Create and run the appropriate simulation
         if (protocol == "GPSR") {
-            LogComponentEnable("StaticSimulationGPSR", LOG_LEVEL_INFO);
-            LogComponentEnable("Gpsr", LOG_LEVEL_DEBUG);
-            LogComponentEnable("GpsrHelper", LOG_LEVEL_INFO);
-
+            std::cout << "Running GPSR routing simulation...\n";
             StaticSimulationGPSR sim(10, 30.0);  // 10 nodes, 30 seconds
             sim.Run();
         } else {
-            LogComponentEnable("StaticSimulation", LOG_LEVEL_INFO);
+            std::cout << "Running " << protocol << " routing simulation...\n";
             StaticSimulation sim(10, 30.0, "DSDV");
             sim.Run();
         }
