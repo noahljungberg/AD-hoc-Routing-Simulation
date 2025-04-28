@@ -35,8 +35,8 @@ void StaticSimulationGPSR::SetupTopology() {
     mobility.SetPositionAllocator("ns3::GridPositionAllocator",
                                "MinX", ns3::DoubleValue(0.0),
                                "MinY", ns3::DoubleValue(0.0),
-                               "DeltaX", ns3::DoubleValue(75.0),  // Changed from 100.0 to 75.0
-                               "DeltaY", ns3::DoubleValue(75.0),  // Changed from 100.0 to 75.0
+                               "DeltaX", ns3::DoubleValue(100.0),  // Changed from 120.0 to 100.0
+                               "DeltaY", ns3::DoubleValue(100.0),  // Changed from 120.0 to 100.0
                                "GridWidth", ns3::UintegerValue(5),
                                "LayoutType", ns3::StringValue("RowFirst"));
 
@@ -93,7 +93,7 @@ void StaticSimulationGPSR::SetupRoutingProtocol() {
     m_flowMonitor = m_flowHelper.InstallAll();
 
     // Critical: Install GPSR
-    gpsr.Install();
+    // gpsr.Install(); // Removed: InternetStackHelper handles installation via SetRoutingHelper
 }
 
 static void UdpEchoTxTrace(Ptr<OutputStreamWrapper> stream, Ptr<const Packet> p) {
@@ -132,9 +132,9 @@ void StaticSimulationGPSR::ConfigureApplications() {
 void StaticSimulationGPSR::RunSimulation() {
     NS_LOG_INFO("Starting GPSR simulation for " << m_simulationTime << " seconds");
 
-    // Enable GPSR debug output but at a lower level
-    LogComponentEnable("Gpsr", LOG_LEVEL_DEBUG);  // Changed from LOG_LEVEL_DEBUG to LOG_LEVEL_INFO
-    LogComponentEnable("GpsrPtable", LOG_LEVEL_DEBUG);  // Changed from LOG_LEVEL_INFO to LOG_LEVEL_DEBUG
+    // Logging levels should be controlled from main.cpp via command line flag
+    // LogComponentEnable("Gpsr", LOG_LEVEL_DEBUG);
+    // LogComponentEnable("GpsrPtable", LOG_LEVEL_DEBUG);
 
     // Schedule state capture at specific times
     Simulator::Schedule(Seconds(5.0), &StaticSimulationGPSR::CaptureBriefState, this);

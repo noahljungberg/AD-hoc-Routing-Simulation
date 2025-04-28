@@ -18,8 +18,8 @@ namespace ns3 {
  */
 enum GpsrMessageType
 {
-  GPSR_HELLO = 1,       // Hello message
-  GPSR_POSITION = 2,    // Position message
+  GPSR_HELLO = 0,       // Hello message
+  GPSR_POSITION = 1,    // Position message
 };
 
 /**
@@ -85,11 +85,11 @@ class GpsrHelloHeader : public Header
 {
 public:
   /**
-   *  Constructor
+   *  Constructor (using double)
    *  x X coordinate
    *  y Y coordinate
    */
-  GpsrHelloHeader(uint64_t x = 0, uint64_t y = 0);
+  GpsrHelloHeader(double x = 0.0, double y = 0.0);
 
   /**
    *  Get the type ID
@@ -105,28 +105,28 @@ public:
   void Print(std::ostream &os) const;
 
   /**
-   *  Set the X coordinate
+   *  Set the X coordinate (using double)
    *  x The X coordinate
    */
-  void SetPositionX(uint64_t x);
+  void SetPositionX(double x);
 
   /**
-   *  Get the X coordinate
+   *  Get the X coordinate (using double)
    *  The X coordinate
    */
-  uint64_t GetPositionX() const;
+  double GetPositionX() const;
 
   /**
-   *  Set the Y coordinate
+   *  Set the Y coordinate (using double)
    *  y The Y coordinate
    */
-  void SetPositionY(uint64_t y);
+  void SetPositionY(double y);
 
   /**
-   *  Get the Y coordinate
+   *  Get the Y coordinate (using double)
    *  The Y coordinate
    */
-  uint64_t GetPositionY() const;
+  double GetPositionY() const;
 
   /**
    *  Comparison operator
@@ -136,8 +136,8 @@ public:
   bool operator==(GpsrHelloHeader const & o) const;
 
 private:
-  uint64_t m_positionX; // X coordinate
-  uint64_t m_positionY; // Y coordinate
+  double m_positionX;
+  double m_positionY;
 };
 
 /**
@@ -155,18 +155,13 @@ class GpsrPositionHeader : public Header
 public:
   /**
    *  Constructor
-   *  dstX Destination X coordinate
-   *  dstY Destination Y coordinate
-   *  updated Time of last update
-   *  recX Recovery position X coordinate
-   *  recY Recovery position Y coordinate
-   *  inRec Flag for recovery mode
-   *  lastX Last position X coordinate
-   *  lastY Last position Y coordinate
+   *  Using double for coordinates now.
+   *  Renamed lastX/Y to prevX/Y.
+   *  Renamed inRec to recoveryFlag.
    */
-  GpsrPositionHeader(uint64_t dstX = 0, uint64_t dstY = 0, uint32_t updated = 0,
-                   uint64_t recX = 0, uint64_t recY = 0, uint8_t inRec = 0,
-                   uint64_t lastX = 0, uint64_t lastY = 0);
+  GpsrPositionHeader(double dstX = 0.0, double dstY = 0.0, uint32_t updated = 0,
+                   double recX = 0.0, double recY = 0.0, bool recoveryFlag = false,
+                   double prevX = 0.0, double prevY = 0.0);
 
   /**
    *  Get the type ID
@@ -182,29 +177,31 @@ public:
   void Print(std::ostream &os) const;
 
   // Accessor methods for all fields
-  void SetDstPositionX(uint64_t x);
-  uint64_t GetDstPositionX() const;
+  void SetDstPositionX(double x);
+  double GetDstPositionX() const;
 
-  void SetDstPositionY(uint64_t y);
-  uint64_t GetDstPositionY() const;
+  void SetDstPositionY(double y);
+  double GetDstPositionY() const;
 
   void SetUpdated(uint32_t updated);
   uint32_t GetUpdated() const;
 
-  void SetRecPositionX(uint64_t x);
-  uint64_t GetRecPositionX() const;
+  void SetRecPositionX(double x);
+  double GetRecPositionX() const;
 
-  void SetRecPositionY(uint64_t y);
-  uint64_t GetRecPositionY() const;
+  void SetRecPositionY(double y);
+  double GetRecPositionY() const;
 
-  void SetInRecovery(uint8_t inRec);
-  uint8_t GetInRecovery() const;
+  // Renamed from Set/GetInRecovery
+  void SetRecoveryFlag(bool flag);
+  bool GetRecoveryFlag() const;
 
-  void SetLastPositionX(uint64_t x);
-  uint64_t GetLastPositionX() const;
+  // Renamed from Set/GetLastPositionX/Y
+  void SetPrevPositionX(double x);
+  double GetPrevPositionX() const;
 
-  void SetLastPositionY(uint64_t y);
-  uint64_t GetLastPositionY() const;
+  void SetPrevPositionY(double y);
+  double GetPrevPositionY() const;
 
   /**
    *  Comparison operator
@@ -214,14 +211,16 @@ public:
   bool operator==(GpsrPositionHeader const & o) const;
 
 private:
-  uint64_t m_dstPositionX;   // Destination X coordinate
-  uint64_t m_dstPositionY;   // Destination Y coordinate
-  uint32_t m_updated;        // Time of last update
-  uint64_t m_recPositionX;   // Recovery position X coordinate
-  uint64_t m_recPositionY;   // Recovery position Y coordinate
-  uint8_t m_inRecovery;      // Flag for recovery mode
-  uint64_t m_lastPositionX;  // Last position X coordinate
-  uint64_t m_lastPositionY;  // Last position Y coordinate
+  // Using double for coordinates
+  double m_dstPositionX;   // Destination X coordinate
+  double m_dstPositionY;   // Destination Y coordinate
+  uint32_t m_updated;        // Time of last update (purpose still unclear)
+  double m_recPositionX;   // Recovery position X coordinate
+  double m_recPositionY;   // Recovery position Y coordinate
+  uint8_t m_recoveryFlag;    // Flag for recovery mode (using uint8_t for storage, API uses bool)
+  // Renamed from m_lastPositionX/Y
+  double m_prevPositionX;  // Previous hop X coordinate in recovery
+  double m_prevPositionY;  // Previous hop Y coordinate in recovery
 };
 
 /**

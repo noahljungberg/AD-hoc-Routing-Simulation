@@ -114,12 +114,28 @@ GpsrRqueue::Enqueue(GpsrQueueEntry & entry)
 {
   Purge();
 
-  // Check if this packet is already in the queue (avoid duplicates)
+  // Check if an identical packet (based on IP header) is already in the queue
+  const Ipv4Header& newHeader = entry.GetIpv4Header();
   for (std::vector<GpsrQueueEntry>::const_iterator i = m_queue.begin(); i != m_queue.end(); ++i) {
+    const Ipv4Header& existingHeader = i->GetIpv4Header();
+    // Check key IP fields: Source, Destination, Protocol, Identification
+    // Note: Assumes fragmentation is not a primary concern here or is handled elsewhere.
+    if (existingHeader.GetSource() == newHeader.GetSource() &&
+        existingHeader.GetDestination() == newHeader.GetDestination() &&
+        existingHeader.GetProtocol() == newHeader.GetProtocol() &&
+        existingHeader.GetIdentification() == newHeader.GetIdentification())
+    {
+        NS_LOG_LOGIC("Duplicate packet detected based on IP header fields (Src=" << newHeader.GetSource()
+                     << ", Dst=" << newHeader.GetDestination() << ", Id=" << newHeader.GetIdentification()
+                     << "). Packet UID " << entry.GetPacket()->GetUid() << " not enqueued.");
+        return false; // Drop duplicate
+    }
+    /* Original check using GetUid:
     if (i->GetPacket()->GetUid() == entry.GetPacket()->GetUid() &&
         i->GetIpv4Header().GetDestination() == entry.GetIpv4Header().GetDestination()) {
       return false;
     }
+    */
   }
 
   // Set timeout for the entry

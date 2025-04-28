@@ -1,5 +1,5 @@
 #include "Simulations/AbstractSimulation.hpp"
-
+#include <gpsr/gpsr.h>
 
 // To make code cleaner
 using namespace ns3;
@@ -14,9 +14,12 @@ void AbstractSimulation::SetupNetwork() {
     YansWifiChannelHelper wifiChannel;
     wifiChannel.SetPropagationDelay("ns3::ConstantSpeedPropagationDelayModel");
 
-    // Use RangePropagationLossModel for simplicity with extended range
-    wifiChannel.AddPropagationLoss("ns3::RangePropagationLossModel",
-                                  "MaxRange", DoubleValue(250.0)); // Increase range to 250m
+    // Use RangePropagationLossModel for simplicity with a shorter range
+    // wifiChannel.AddPropagationLoss("ns3::RangePropagationLossModel",
+    //                               "MaxRange", DoubleValue(150.0)); // Reduced range to 150m
+    // Switch to Friis model to simplify and likely increase range
+    wifiChannel.AddPropagationLoss("ns3::FriisPropagationLossModel",
+                                   "Frequency", ns3::DoubleValue(2.4e9)); // Assuming 2.4 GHz WiFi
 
     // Create and configure PHY with higher power
     YansWifiPhyHelper wifiPhy;
@@ -35,8 +38,9 @@ void AbstractSimulation::SetupNetwork() {
     m_devices = wifi.Install(wifiPhy, wifiMac, m_nodes);
 
     AsciiTraceHelper ascii;
-    wifiPhy.EnableAsciiAll(ascii.CreateFileStream("wireless-trace.tr"));
-    wifiPhy.EnablePcapAll("simulation-pcap");
+    // Ensure both Tx and Rx PHY traces are enabled
+    wifiPhy.EnableAsciiAll(ascii.CreateFileStream("wifi-phy-trace.tr"));
+    // wifiPhy.EnablePcapAll("simulation-pcap"); // Keep pcap enabled if desired
 }
 
 void AbstractSimulation::SetupDSDV() {
@@ -69,4 +73,49 @@ void AbstractSimulation::SetupGPSR() {
     ns3::Ipv4AddressHelper ipv4;
     ipv4.SetBase("10.1.1.0", "255.255.255.0");
     m_interfaces = ipv4.Assign(m_devices);
+
+    // Print node positions and GPSR neighbor tables
+    std::cout << "\n*** GPSR Routing Tables & Node Info ***\n";
+    Ptr<OutputStreamWrapper> routingStream = Create<OutputStreamWrapper> (&std::cout);
+
+    for (uint32_t i = 0; i < m_nodes.GetN(); i++) {
+        Ptr<Node> node = m_nodes.Get(i);
+        std::cout << "\n--- Node " << i << " ---\nIP: ";
+        if (node) {
+            Ptr<Ipv4> ipv4 = node->GetObject<Ipv4>();
+            if (ipv4 && ipv4->GetNInterfaces() > 1) {
+                // Assuming interface 1 is the WiFi interface
+                std::cout << ipv4->GetAddress(1, 0).GetLocal();
+            } else {
+                std::cout << "unknown";
+            }
+
+            Ptr<MobilityModel> mob = node->GetObject<MobilityModel>();
+            if (mob) {
+                Vector pos = mob->GetPosition();
+                std::cout << " | Position: (" << pos.x << ", " << pos.y << ")\n";
+            } else {
+                std::cout << " | Position: unknown\n";
+            }
+
+            // Get the GPSR routing protocol and print its table
+            if (ipv4) {
+                // We need to query the routing protocol list
+                Ptr<Ipv4RoutingProtocol> rp = ipv4->GetRoutingProtocol ();
+                // Assuming GPSR is the first protocol if list routing is used,
+                // or the only one otherwise. A more robust way might iterate.
+                Ptr<ns3::Gpsr> gpsrProto = DynamicCast<ns3::Gpsr>(rp);
+                if (gpsrProto) {
+                    gpsrProto->PrintRoutingTable(routingStream, Time::S);
+                } else {
+                    std::cout << "  Error: Could not get GPSR protocol instance.\n";
+                }
+            } else {
+                 std::cout << "  Error: Could not get Ipv4 instance.\n";
+            }
+
+        } else {
+            std::cout << "unknown | Position: unknown\n";
+        }
+    }
 }

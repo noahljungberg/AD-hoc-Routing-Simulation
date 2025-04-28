@@ -16,6 +16,7 @@
 #include "ns3/ip-l4-protocol.h"
 #include "ns3/mobility-model.h"
 #include "ns3/vector.h"
+#include "ns3/random-variable-stream.h"
 
 namespace ns3 {
 
@@ -72,11 +73,14 @@ private:
   // Handle deferred route output
   void DeferredRouteOutput(Ptr<const Packet> p, const Ipv4Header & header, UnicastForwardCallback ucb, ErrorCallback ecb);
 
+  // Helper to drop queued packets for a destination
+  void DropPacketWithDst(Ipv4Address dst, std::string reason);
+
   // Forward packet using greedy forwarding
   bool ForwardingGreedy(Ptr<const Packet> p, const Ipv4Header & header, UnicastForwardCallback ucb, ErrorCallback ecb);
 
   // Enter recovery mode when greedy forwarding fails
-  void RecoveryMode(Ipv4Address dst, Ptr<Packet> p, UnicastForwardCallback ucb, Ipv4Header header);
+  void RecoveryMode(Ipv4Address dst, Ptr<Packet> p, UnicastForwardCallback ucb, Ipv4Header header, const ErrorCallback &ecb);
 
   // Loopback route for self-addressed packets
   Ptr<Ipv4Route> LoopbackRoute(const Ipv4Header & header, Ptr<NetDevice> oif);
@@ -103,6 +107,7 @@ private:
   GpsrRqueue m_queue; // Request queue for packets
   bool m_perimeterMode; // Flag for perimeter mode
   std::list<Ipv4Address> m_queuedAddresses;
+  Ptr<UniformRandomVariable> m_uniformRandomVariable;
 
   // Timers
   Timer m_helloTimer;
@@ -110,6 +115,14 @@ private:
 
   // Callbacks
   IpL4Protocol::DownTargetCallback m_downTarget;
+
+  // New methods for position management and recovery mode
+  Vector GetNodePosition(Ptr<Node> node);
+  Vector GetDestinationPosition(Ipv4Address dst);
+  void UpdatePositionTable();
+  bool IsCloserToDestination(Vector nextHopPos, Vector myPos, Vector dstPos);
+
+
 
 protected:
   virtual void DoInitialize(void);

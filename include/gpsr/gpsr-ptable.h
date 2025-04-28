@@ -9,6 +9,7 @@
 #include "ns3/vector.h"
 #include "ns3/mobility-model.h"
 #include "ns3/wifi-mac-header.h"
+#include "ns3/object.h"
 #include <map>
 
 namespace ns3 {
@@ -19,9 +20,15 @@ namespace ns3 {
  * This class manages the position information of neighboring nodes
  * and provides methods to find the best next hop for GPSR routing.
  */
-class GpsrPtable
+class GpsrPtable : public Object
 {
 public:
+  /**
+   *  Get the type ID.
+   *  The object TypeId
+   */
+  static TypeId GetTypeId (void);
+
   GpsrPtable();
 
   /**
@@ -69,12 +76,6 @@ public:
   void Clear();
 
   /**
-   *  Gets the TX error callback
-   *  The TX error callback
-   */
-  Callback<void, WifiMacHeader const &> GetTxErrorCallback() const;
-
-  /**
    *  Finds the best next hop using greedy forwarding
    *  position The position of the destination
    *  nodePos The position of the current node
@@ -88,7 +89,7 @@ public:
    *  nodePos The position of the current node
    *  The IP address of the best next hop
    */
-  Ipv4Address BestAngle(Vector prevHop, Vector nodePos);
+  Ipv4Address BestAngle(Vector dstPos, Vector recPos, Vector myPos, Vector prevPos);
 
   /**
    *  Calculates the angle between three points
@@ -108,10 +109,6 @@ public:
 private:
   Time m_entryLifetime; // Lifetime of a position table entry
   std::map<Ipv4Address, std::pair<Vector, Time>> m_table; // Position table
-  Callback<void, WifiMacHeader const &> m_txErrorCallback; // TX error callback
-
-  // Process TX error notification
-  void ProcessTxError(WifiMacHeader const &);
 };
 
 }

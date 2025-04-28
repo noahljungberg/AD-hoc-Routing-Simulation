@@ -19,6 +19,7 @@ int main(int argc, char *argv[]) {
         ns3::LogComponentEnable("Gpsr", LOG_LEVEL_DEBUG);
         ns3::LogComponentEnable("GpsrHelper", LOG_LEVEL_INFO);
         ns3::LogComponentEnable("GpsrPtable", LOG_LEVEL_DEBUG);
+        ns3::LogComponentEnable("GpsrPacket", LOG_LEVEL_DEBUG);
     } else {
         // Otherwise keep logging minimal
         ns3::LogComponentEnable("StaticSimulationGPSR", LOG_LEVEL_WARN);

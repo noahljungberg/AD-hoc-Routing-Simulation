@@ -2,6 +2,7 @@
 #include "ns3/address-utils.h"
 #include "ns3/packet.h"
 #include "ns3/log.h"
+#include <cstring> // Added for memcpy
 
 namespace ns3 {
 
@@ -53,13 +54,20 @@ GpsrTypeHeader::Deserialize(Buffer::Iterator start)
   Buffer::Iterator i = start;
   uint8_t type = i.ReadU8();
   m_valid = true;
+  NS_LOG_DEBUG("GpsrTypeHeader::Deserialize: Read byte = " << static_cast<int>(type));
 
+  // Check the explicit numeric values based on the GpsrMessageType enum
   switch (type) {
-    case GPSR_HELLO:
-    case GPSR_POSITION:
-      m_type = (GpsrMessageType)type;
+    case 0: // Explicitly check for GPSR_HELLO value
+      m_type = GPSR_HELLO;
+      NS_LOG_DEBUG("GpsrTypeHeader::Deserialize: Interpreted as HELLO");
+      break;
+    case 1: // Explicitly check for GPSR_POSITION value
+      m_type = GPSR_POSITION;
+      NS_LOG_DEBUG("GpsrTypeHeader::Deserialize: Interpreted as POSITION");
       break;
     default:
+      NS_LOG_WARN("GpsrTypeHeader::Deserialize: Unknown type byte " << static_cast<int>(type));
       m_valid = false;
   }
 
@@ -114,7 +122,7 @@ operator<<(std::ostream & os, GpsrTypeHeader const & h)
 
 NS_OBJECT_ENSURE_REGISTERED(GpsrHelloHeader);
 
-GpsrHelloHeader::GpsrHelloHeader(uint64_t x, uint64_t y) :
+GpsrHelloHeader::GpsrHelloHeader(double x, double y) :
   m_positionX(x),
   m_positionY(y)
 {
@@ -139,25 +147,23 @@ GpsrHelloHeader::GetInstanceTypeId() const
 uint32_t
 GpsrHelloHeader::GetSerializedSize() const
 {
-  return 16; // 8 bytes for each position coordinate
+  return sizeof(double) * 2;
 }
 
 void
 GpsrHelloHeader::Serialize(Buffer::Iterator i) const
 {
   NS_LOG_DEBUG("Serialize X " << m_positionX << " Y " << m_positionY);
-
-  i.WriteHtonU64(m_positionX);
-  i.WriteHtonU64(m_positionY);
+  i.Write((uint8_t*)&m_positionX, sizeof(double));
+  i.Write((uint8_t*)&m_positionY, sizeof(double));
 }
 
 uint32_t
 GpsrHelloHeader::Deserialize(Buffer::Iterator start)
 {
   Buffer::Iterator i = start;
-
-  m_positionX = i.ReadNtohU64();
-  m_positionY = i.ReadNtohU64();
+  i.Read((uint8_t*)&m_positionX, sizeof(double));
+  i.Read((uint8_t*)&m_positionY, sizeof(double));
 
   NS_LOG_DEBUG("Deserialize X " << m_positionX << " Y " << m_positionY);
 
@@ -174,24 +180,24 @@ GpsrHelloHeader::Print(std::ostream &os) const
 }
 
 void
-GpsrHelloHeader::SetPositionX(uint64_t x)
+GpsrHelloHeader::SetPositionX(double x)
 {
   m_positionX = x;
 }
 
-uint64_t
+double
 GpsrHelloHeader::GetPositionX() const
 {
   return m_positionX;
 }
 
 void
-GpsrHelloHeader::SetPositionY(uint64_t y)
+GpsrHelloHeader::SetPositionY(double y)
 {
   m_positionY = y;
 }
 
-uint64_t
+double
 GpsrHelloHeader::GetPositionY() const
 {
   return m_positionY;
@@ -216,17 +222,17 @@ operator<<(std::ostream & os, GpsrHelloHeader const & h)
 
 NS_OBJECT_ENSURE_REGISTERED(GpsrPositionHeader);
 
-GpsrPositionHeader::GpsrPositionHeader(uint64_t dstX, uint64_t dstY, uint32_t updated,
-                                     uint64_t recX, uint64_t recY, uint8_t inRec,
-                                     uint64_t lastX, uint64_t lastY) :
+GpsrPositionHeader::GpsrPositionHeader(double dstX, double dstY, uint32_t updated,
+                                     double recX, double recY, bool recoveryFlag,
+                                     double prevX, double prevY) :
   m_dstPositionX(dstX),
   m_dstPositionY(dstY),
   m_updated(updated),
   m_recPositionX(recX),
   m_recPositionY(recY),
-  m_inRecovery(inRec),
-  m_lastPositionX(lastX),
-  m_lastPositionY(lastY)
+  m_recoveryFlag(static_cast<uint8_t>(recoveryFlag)),
+  m_prevPositionX(prevX),
+  m_prevPositionY(prevY)
 {
 }
 
@@ -249,20 +255,26 @@ GpsrPositionHeader::GetInstanceTypeId() const
 uint32_t
 GpsrPositionHeader::GetSerializedSize() const
 {
-  return 53; // 8*6 + 4 + 1 bytes
+  return sizeof(double) * 6 + sizeof(uint32_t) + sizeof(uint8_t);
 }
 
 void
 GpsrPositionHeader::Serialize(Buffer::Iterator i) const
 {
-  i.WriteU64(m_dstPositionX);
-  i.WriteU64(m_dstPositionY);
-  i.WriteU32(m_updated);
-  i.WriteU64(m_recPositionX);
-  i.WriteU64(m_recPositionY);
-  i.WriteU8(m_inRecovery);
-  i.WriteU64(m_lastPositionX);
-  i.WriteU64(m_lastPositionY);
+  NS_LOG_DEBUG("Serialize DstX " << m_dstPositionX << " DstY " << m_dstPositionY 
+               << " RecX " << m_recPositionX << " RecY " << m_recPositionY 
+               << " PrevX " << m_prevPositionX << " PrevY " << m_prevPositionY 
+               << " Updated " << m_updated << " Recovery " << static_cast<bool>(m_recoveryFlag));
+
+  i.Write((uint8_t*)&m_dstPositionX, sizeof(double));
+  i.Write((uint8_t*)&m_dstPositionY, sizeof(double));
+  i.Write((uint8_t*)&m_recPositionX, sizeof(double));
+  i.Write((uint8_t*)&m_recPositionY, sizeof(double));
+  i.Write((uint8_t*)&m_prevPositionX, sizeof(double));
+  i.Write((uint8_t*)&m_prevPositionY, sizeof(double));
+
+  i.WriteHtonU32(m_updated);
+  i.WriteU8(m_recoveryFlag);
 }
 
 uint32_t
@@ -270,14 +282,20 @@ GpsrPositionHeader::Deserialize(Buffer::Iterator start)
 {
   Buffer::Iterator i = start;
 
-  m_dstPositionX = i.ReadU64();
-  m_dstPositionY = i.ReadU64();
-  m_updated = i.ReadU32();
-  m_recPositionX = i.ReadU64();
-  m_recPositionY = i.ReadU64();
-  m_inRecovery = i.ReadU8();
-  m_lastPositionX = i.ReadU64();
-  m_lastPositionY = i.ReadU64();
+  i.Read((uint8_t*)&m_dstPositionX, sizeof(double));
+  i.Read((uint8_t*)&m_dstPositionY, sizeof(double));
+  i.Read((uint8_t*)&m_recPositionX, sizeof(double));
+  i.Read((uint8_t*)&m_recPositionY, sizeof(double));
+  i.Read((uint8_t*)&m_prevPositionX, sizeof(double));
+  i.Read((uint8_t*)&m_prevPositionY, sizeof(double));
+
+  m_updated = i.ReadNtohU32();
+  m_recoveryFlag = i.ReadU8();
+
+  NS_LOG_DEBUG("Deserialize DstX " << m_dstPositionX << " DstY " << m_dstPositionY 
+                 << " RecX " << m_recPositionX << " RecY " << m_recPositionY 
+                 << " PrevX " << m_prevPositionX << " PrevY " << m_prevPositionY 
+                 << " Updated " << m_updated << " Recovery " << static_cast<bool>(m_recoveryFlag));
 
   uint32_t dist = i.GetDistanceFrom(start);
   NS_ASSERT(dist == GetSerializedSize());
@@ -287,35 +305,35 @@ GpsrPositionHeader::Deserialize(Buffer::Iterator start)
 void
 GpsrPositionHeader::Print(std::ostream &os) const
 {
-  os << " DestinationX: " << m_dstPositionX
-     << " DestinationY: " << m_dstPositionY
+  os << " DstX: " << m_dstPositionX
+     << " DstY: " << m_dstPositionY
+     << " RecX: " << m_recPositionX
+     << " RecY: " << m_recPositionY
+     << " PrevX: " << m_prevPositionX
+     << " PrevY: " << m_prevPositionY
      << " Updated: " << m_updated
-     << " RecoveryX: " << m_recPositionX
-     << " RecoveryY: " << m_recPositionY
-     << " InRecovery: " << (uint32_t)m_inRecovery
-     << " LastX: " << m_lastPositionX
-     << " LastY: " << m_lastPositionY;
+     << " Recovery: " << (m_recoveryFlag ? "true" : "false");
 }
 
 void
-GpsrPositionHeader::SetDstPositionX(uint64_t x)
+GpsrPositionHeader::SetDstPositionX(double x)
 {
   m_dstPositionX = x;
 }
 
-uint64_t
+double
 GpsrPositionHeader::GetDstPositionX() const
 {
   return m_dstPositionX;
 }
 
 void
-GpsrPositionHeader::SetDstPositionY(uint64_t y)
+GpsrPositionHeader::SetDstPositionY(double y)
 {
   m_dstPositionY = y;
 }
 
-uint64_t
+double
 GpsrPositionHeader::GetDstPositionY() const
 {
   return m_dstPositionY;
@@ -334,63 +352,63 @@ GpsrPositionHeader::GetUpdated() const
 }
 
 void
-GpsrPositionHeader::SetRecPositionX(uint64_t x)
+GpsrPositionHeader::SetRecPositionX(double x)
 {
   m_recPositionX = x;
 }
 
-uint64_t
+double
 GpsrPositionHeader::GetRecPositionX() const
 {
   return m_recPositionX;
 }
 
 void
-GpsrPositionHeader::SetRecPositionY(uint64_t y)
+GpsrPositionHeader::SetRecPositionY(double y)
 {
   m_recPositionY = y;
 }
 
-uint64_t
+double
 GpsrPositionHeader::GetRecPositionY() const
 {
   return m_recPositionY;
 }
 
 void
-GpsrPositionHeader::SetInRecovery(uint8_t inRec)
+GpsrPositionHeader::SetRecoveryFlag(bool flag)
 {
-  m_inRecovery = inRec;
+  m_recoveryFlag = static_cast<uint8_t>(flag);
 }
 
-uint8_t
-GpsrPositionHeader::GetInRecovery() const
+bool
+GpsrPositionHeader::GetRecoveryFlag() const
 {
-  return m_inRecovery;
-}
-
-void
-GpsrPositionHeader::SetLastPositionX(uint64_t x)
-{
-  m_lastPositionX = x;
-}
-
-uint64_t
-GpsrPositionHeader::GetLastPositionX() const
-{
-  return m_lastPositionX;
+  return static_cast<bool>(m_recoveryFlag);
 }
 
 void
-GpsrPositionHeader::SetLastPositionY(uint64_t y)
+GpsrPositionHeader::SetPrevPositionX(double x)
 {
-  m_lastPositionY = y;
+  m_prevPositionX = x;
 }
 
-uint64_t
-GpsrPositionHeader::GetLastPositionY() const
+double
+GpsrPositionHeader::GetPrevPositionX() const
 {
-  return m_lastPositionY;
+  return m_prevPositionX;
+}
+
+void
+GpsrPositionHeader::SetPrevPositionY(double y)
+{
+  m_prevPositionY = y;
+}
+
+double
+GpsrPositionHeader::GetPrevPositionY() const
+{
+  return m_prevPositionY;
 }
 
 bool
@@ -401,9 +419,9 @@ GpsrPositionHeader::operator==(GpsrPositionHeader const & o) const
          m_updated == o.m_updated &&
          m_recPositionX == o.m_recPositionX &&
          m_recPositionY == o.m_recPositionY &&
-         m_inRecovery == o.m_inRecovery &&
-         m_lastPositionX == o.m_lastPositionX &&
-         m_lastPositionY == o.m_lastPositionY;
+         m_recoveryFlag == o.m_recoveryFlag &&
+         m_prevPositionX == o.m_prevPositionX &&
+         m_prevPositionY == o.m_prevPositionY;
 }
 
 std::ostream &

@@ -7,15 +7,34 @@
 #include "ns3/node-list.h"
 #include "ns3/node.h"
 #include "ns3/mobility-model.h"
+#include "ns3/double.h" // Needed for MakeTimeAccessor/Checker
+#include "ns3/uinteger.h" // Needed for MakeTimeAccessor/Checker
+#include "ns3/enum.h" // Needed for MakeTimeAccessor/Checker
 
 namespace ns3 {
 
 NS_LOG_COMPONENT_DEFINE("GpsrPtable");
+NS_OBJECT_ENSURE_REGISTERED(GpsrPtable); // Ensure registered for GetTypeId
+
+// Add GetTypeId method to allow configuration
+TypeId
+GpsrPtable::GetTypeId(void)
+{
+    static TypeId tid = TypeId ("ns3::GpsrPtable")
+        .SetParent<Object> ()
+        .SetGroupName ("Routing")
+        .AddConstructor<GpsrPtable> ()
+        .AddAttribute ("EntryLifetime", "Time after which a neighbor entry is considered expired.",
+                       TimeValue (Seconds (3.0)), // Default to 3 * default HelloInterval (1s)
+                       MakeTimeAccessor (&GpsrPtable::m_entryLifetime),
+                       MakeTimeChecker ());
+    return tid;
+}
 
 GpsrPtable::GpsrPtable() :
-  m_entryLifetime(Seconds(2)) // FIXME: Make this parametrizable based on hello interval
+  m_entryLifetime(Seconds(3.0)) // Default, will be overwritten by attribute if set
 {
-  m_txErrorCallback = MakeCallback(&GpsrPtable::ProcessTxError, this);
+  NS_LOG_FUNCTION(this << m_entryLifetime);
 }
 
 Time
@@ -57,23 +76,39 @@ GpsrPtable::DeleteEntry(Ipv4Address id)
   Vector
   GpsrPtable::GetPosition(Ipv4Address id)
 {
+  Purge(); // Purge expired entries before lookup
   std::map<Ipv4Address, std::pair<Vector, Time> >::iterator i = m_table.find(id);
   if (i != m_table.end()) {
+    NS_LOG_LOGIC("GetPosition: Found position " << i->second.first << " for " << id << " in table.");
     return i->second.first;
   }
 
+  /* Removed inefficient and potentially incorrect NodeList fallback
   // If not found in table, try to get it from node list
-  for (NodeList::Iterator i = NodeList::Begin(); i != NodeList::End(); i++) {
-    Ptr<Node> node = *i;
-    if (node->GetObject<Ipv4>() &&
-        node->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal() == id) {
-      Ptr<MobilityModel> mobility = node->GetObject<MobilityModel>();
-      if (mobility) {
-        return mobility->GetPosition();
-      }
+  NS_LOG_LOGIC("GetPosition: " << id << " not found in table, searching NodeList (INEFFICIENT). This should ideally not happen.");
+  for (NodeList::Iterator nodeIter = NodeList::Begin(); nodeIter != NodeList::End(); nodeIter++) {
+    Ptr<Node> node = *nodeIter;
+    Ptr<Ipv4> ipv4 = node->GetObject<Ipv4>();
+    if (ipv4) {
+        for (uint32_t ifaceIdx = 0; ifaceIdx < ipv4->GetNInterfaces(); ++ifaceIdx) {
+            for (uint32_t addrIdx = 0; addrIdx < ipv4->GetNAddresses(ifaceIdx); ++addrIdx) {
+                if (ipv4->GetAddress(ifaceIdx, addrIdx).GetLocal() == id) {
+                    Ptr<MobilityModel> mobility = node->GetObject<MobilityModel>();
+                    if (mobility) {
+                         NS_LOG_WARN("GetPosition: Found position for " << id << " via NodeList fallback.");
+                        return mobility->GetPosition();
+                    } else {
+                        NS_LOG_WARN("GetPosition: Found node for " << id << " via NodeList, but it has no mobility model.");
+                        return GetInvalidPosition();
+                    }
+                }
+            }
         }
+    }
   }
+  */
 
+  NS_LOG_WARN("GetPosition: Could not find position for " << id << " in neighbor table.");
   return GetInvalidPosition();
 }
 
@@ -121,14 +156,8 @@ GpsrPtable::Clear()
   m_table.clear();
 }
 
-Callback<void, WifiMacHeader const &>
-GpsrPtable::GetTxErrorCallback() const
-{
-  return m_txErrorCallback;
-}
-
-  Ipv4Address
-  GpsrPtable::BestNeighbor(Vector position, Vector nodePos)
+Ipv4Address
+GpsrPtable::BestNeighbor(Vector position, Vector nodePos)
 {
   Purge();
 
@@ -173,76 +202,114 @@ GpsrPtable::GetTxErrorCallback() const
 }
 
 Ipv4Address
-GpsrPtable::BestAngle(Vector prevHop, Vector nodePos)
+GpsrPtable::BestAngle(Vector dstPos, Vector recPos, Vector myPos, Vector prevPos)
 {
   Purge();
+  NS_LOG_FUNCTION(this << " Dst:" << dstPos << " Rec:" << recPos << " My:" << myPos << " Prev:" << prevPos);
 
   if (m_table.empty()) {
-    NS_LOG_DEBUG("BestAngle table is empty; Position: " << nodePos);
+    NS_LOG_DEBUG("BestAngle: Neighbor table empty at " << myPos);
     return Ipv4Address::GetZero();
   }
 
-  double tmpAngle;
-  Ipv4Address bestFoundId = Ipv4Address::GetZero();
-  double bestFoundAngle = 360;
+  // Debug: Log neighbor table contents
+  NS_LOG_DEBUG("BestAngle: Current Neighbors at " << myPos << " (Table size: " << m_table.size() << "):");
+  for (std::map<Ipv4Address, std::pair<Vector, Time> >::const_iterator dbg_it = m_table.begin(); 
+       dbg_it != m_table.end(); ++dbg_it) {
+      NS_LOG_DEBUG("  -> " << dbg_it->first << " at " << dbg_it->second.first 
+                   << " (Updated: " << dbg_it->second.second.GetSeconds() << "s)");
+  }
+  // End Debug Log
 
-  std::map<Ipv4Address, std::pair<Vector, Time> >::iterator i;
-  for (i = m_table.begin(); i != m_table.end(); ++i) {
-    tmpAngle = GetAngle(nodePos, prevHop, i->second.first);
-    if (bestFoundAngle > tmpAngle && tmpAngle != 0) {
-      bestFoundId = i->first;
-      bestFoundAngle = tmpAngle;
+  if (prevPos == GetInvalidPosition()) {
+      NS_LOG_WARN("BestAngle: Previous hop position is invalid. Cannot apply right-hand rule.");
+      return Ipv4Address::GetZero();
+  }
+
+
+  Ipv4Address bestFoundId = Ipv4Address::GetZero();
+  double smallestAngle = 361.0; // Initialize with value > 360
+
+  NS_LOG_DEBUG("BestAngle: Evaluating neighbors relative to edge " << prevPos << " -> " << myPos);
+
+  for (std::map<Ipv4Address, std::pair<Vector, Time> >::const_iterator i = m_table.begin();
+       i != m_table.end(); ++i) 
+  {
+    Vector neighborPos = i->second.first;
+    Ipv4Address neighborId = i->first;
+
+    if (neighborPos == prevPos) {
+        NS_LOG_LOGIC("BestAngle: Skipping neighbor " << neighborId << " at previous hop position " << prevPos);
+        continue;
+    }
+
+    double angle = GetAngle(myPos, prevPos, neighborPos);
+    // Debug: Log calculated angle
+    NS_LOG_DEBUG("BestAngle:  Neighbor " << neighborId << " at " << neighborPos << ", Angle = " << angle);
+
+    // TODO: Implement check against recPos-dstPos line intersection here? 
+
+    if (angle < smallestAngle) {
+      // Debug: Log potential new best angle
+      NS_LOG_DEBUG("BestAngle:   New smallest angle found: " << angle << " for neighbor " << neighborId);
+      smallestAngle = angle;
+      bestFoundId = neighborId;
     }
   }
 
-  if (bestFoundId == Ipv4Address::GetZero() && !m_table.empty()) {
-    // If no suitable neighbor found, just use the first one
-    bestFoundId = m_table.begin()->first;
+  if (bestFoundId == Ipv4Address::GetZero()){
+      NS_LOG_DEBUG("BestAngle: No suitable neighbor found according to right-hand rule.");
+  } else {
+      NS_LOG_DEBUG("BestAngle: Selected neighbor " << bestFoundId << " with angle " << smallestAngle);
   }
 
   return bestFoundId;
 }
 
-  double
-  GpsrPtable::GetAngle(Vector center, Vector refPos, Vector node)
+// GetAngle calculates the counter-clockwise angle (0-360) from vector Center->RefPos
+// to vector Center->NodePos using atan2
+double
+GpsrPtable::GetAngle(Vector center, Vector refPos, Vector nodePos)
 {
-  const double PI = 3.14159265358979323846;
+    const double PI = M_PI; // Use M_PI from cmath for better precision
 
-  // Convert to complex numbers for easier calculation
-  std::complex<double> A(center.x, center.y);
-  std::complex<double> B(node.x, node.y);
-  std::complex<double> C(refPos.x, refPos.y);
+    // Calculate vectors relative to the center point
+    double refVecX = refPos.x - center.x;
+    double refVecY = refPos.y - center.y;
+    double nodeVecX = nodePos.x - center.x;
+    double nodeVecY = nodePos.y - center.y;
 
-  std::complex<double> AB = B - A;
-  std::complex<double> AC = C - A;
+    // Calculate the angle of each vector relative to the positive X-axis
+    double angleRef = atan2(refVecY, refVecX);
+    double angleNode = atan2(nodeVecY, nodeVecX);
 
-  // Normalize vectors
-  AB = std::complex<double>(std::real(AB)/std::abs(AB), std::imag(AB)/std::abs(AB));
-  AC = std::complex<double>(std::real(AC)/std::abs(AC), std::imag(AC)/std::abs(AC));
+    // Calculate the difference in angles
+    double angleDiff = angleNode - angleRef;
 
-  // Calculate angle
-  std::complex<double> tmp = std::log(AC/AB);
-  std::complex<double> Angle = tmp * std::complex<double>(0.0, -1.0);
-  Angle *= (180/PI);
+    // Convert angle difference to degrees (0-360 range)
+    angleDiff = angleDiff * 180.0 / PI;
+    if (angleDiff < 0)
+    {
+        angleDiff += 360.0;
+    }
 
-  double angle = std::real(Angle);
-  if (angle < 0) {
-    angle = 360 + angle;
-  }
+    // Ensure the angle is not exactly zero if vectors are different
+    // (avoids issues if refPos == nodePos, though BestAngle should skip prevHop)
+    if (angleDiff == 0 && (refVecX != nodeVecX || refVecY != nodeVecY)) {
+         // Return 360 instead of 0 for non-identical vectors pointing in the same direction
+         // This ensures it's not selected as the minimum angle unless it's the only option.
+         // Or handle this in BestAngle? Let's return 360 for now.
+         return 360.0; 
+    }
 
-  return angle;
+    // Return a very small value if the angle is extremely close to 0 but not exactly 0? No, return calculated angle.
+    return angleDiff;
 }
 
 Vector
 GpsrPtable::GetInvalidPosition()
 {
   return Vector(-1, -1, 0);
-}
-
-void
-GpsrPtable::ProcessTxError(WifiMacHeader const & hdr)
-{
-  // This could be used to handle link failures detected at the MAC layer
 }
 
 // Helper function to calculate distance between two points
